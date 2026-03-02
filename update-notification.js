@@ -30,11 +30,6 @@ class UpdateNotification {
       <div class="update-item">6.修复长期记忆修改读取数量后TOKEN没有变化的情况</div>
       <div class="update-item">7.新增真心话（群聊版）</div>
       <div class="update-item">8.优化了小组件部分</div>
-      <div class="update-divider">遇到页面卡住、无法操作？</div>
-      <div class="update-item tips" style="margin-bottom: 6px;">可先在此备份本站数据，再清除浏览器中「本网站」的缓存/存储；清除后重新打开，到 设置→导入备份文件 恢复即可。</div>
-      <button type="button" id="update-btn-export-backup" class="update-btn update-btn-secondary" style="margin-bottom: 12px;">
-        📤 备份本站数据（清除缓存前请先备份）
-      </button>
     `;
 
     return `
@@ -146,33 +141,6 @@ class UpdateNotification {
     if (modal) {
       modal.addEventListener('click', (e) => {
         e.stopPropagation();
-      });
-    }
-
-    // 备份本站数据（清除缓存前可从此入口导出）
-    const btnExportBackup = document.getElementById('update-btn-export-backup');
-    if (btnExportBackup) {
-      btnExportBackup.addEventListener('click', async () => {
-        if (btnExportBackup.disabled) return;
-        const fn = window.ephoneExportBackupFromPopup;
-        if (typeof fn !== 'function') {
-          alert('导出功能尚未就绪，请稍候几秒再试。');
-          return;
-        }
-        btnExportBackup.disabled = true;
-        btnExportBackup.textContent = '请选择备份方式...';
-        try {
-          const ok = await fn();
-          if (ok) {
-            btnExportBackup.textContent = '✓ 已触发下载，请保存好文件后再清除缓存';
-          } else {
-            btnExportBackup.disabled = false;
-            btnExportBackup.textContent = '📤 备份本站数据（清除缓存前请先备份）';
-          }
-        } catch (e) {
-          btnExportBackup.disabled = false;
-          btnExportBackup.textContent = '📤 备份本站数据（清除缓存前请先备份）';
-        }
       });
     }
 

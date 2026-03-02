@@ -1110,12 +1110,11 @@ document.addEventListener('DOMContentLoaded', () => {
       
       recoveryInfo += '\n\n您可以继续正常使用，数据已经恢复完成。如有任何疑问，可以检查云备份记录。';
       
-      // 显示恢复提示（带「备份本站数据」入口，便于用户先备份再清除缓存）
-      if (typeof showRecoveryAlertWithBackup === 'function') {
-        await showRecoveryAlertWithBackup('正常启动提示', recoveryInfo);
-      } else if (typeof showCustomAlert === 'function') {
+      // 显示恢复提示（使用原有的 showCustomAlert）
+      if (typeof showCustomAlert === 'function') {
         await showCustomAlert('正常启动提示', recoveryInfo);
       } else {
+        // 如果 showCustomAlert 还未定义，使用 alert
         alert('正常启动提示\n\n' + recoveryInfo);
       }
       
@@ -5012,6 +5011,11 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         })();
       }
+    }
+
+    // 离开聊天界面时停止 TTS，避免切到其他页面后继续朗读
+    if (currentActiveScreen && currentActiveScreen.id === 'chat-interface-screen' && screenId !== 'chat-interface-screen') {
+      if (typeof stopAllTtsPlayback === 'function') stopAllTtsPlayback();
     }
 
     if (screenId === 'chat-list-screen') {
@@ -13385,6 +13389,7 @@ https://xx.com/4.jpg 疑惑`;
 
   async function openChat(chatId) {
     state.activeChatId = chatId;
+    if (typeof stopAllTtsPlayback === 'function') stopAllTtsPlayback();
     const chat = state.chats[chatId];
     if (!chat) return;
 
@@ -52766,6 +52771,34 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
     }
   }
 
+  // 单条语音消息播放状态（用于同一条点两次=暂停/取消，退出聊天=停播）
+  let currentTtsMessageKey = '';
+  let currentTtsLoading = false;
+  let ttsAbortController = null;
+
+  function stopAllTtsPlayback() {
+    stopTtsQueue();
+    if (ttsAbortController) {
+      ttsAbortController.abort();
+      ttsAbortController = null;
+    }
+    currentTtsMessageKey = '';
+    currentTtsLoading = false;
+    const ttsPlayer = document.getElementById('tts-audio-player');
+    if (ttsPlayer) {
+      ttsPlayer.onended = null;
+      ttsPlayer.onpause = null;
+      ttsPlayer.pause();
+      ttsPlayer.src = '';
+      delete ttsPlayer.dataset.currentText;
+      delete ttsPlayer.dataset.currentVoiceId;
+      delete ttsPlayer.dataset.currentMessageKey;
+    }
+    document.querySelectorAll('.voice-play-btn').forEach(btn => { btn.textContent = '▶'; });
+    document.querySelectorAll('.voice-message-body .loading-spinner').forEach(el => { el.style.display = 'none'; });
+    document.querySelectorAll('.voice-message-body .voice-play-btn').forEach(btn => { btn.style.display = 'flex'; });
+  }
+
   async function processNextTts() {
     if (ttsQueue.length === 0) {
       isTtsPlaying = false;
@@ -52809,7 +52842,8 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
             format: "mp3",
             channel: 1
           }
-        })
+        }),
+        signal
       });
 
       if (!response.ok) throw new Error("API请求失败");
@@ -52923,6 +52957,9 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
   }
 
   async function playTtsAudio(bodyElement) {
+    const bubble = bodyElement.closest('.message-bubble');
+    const messageKey = (state.activeChatId || '') + '_' + (bubble?.dataset?.timestamp || '');
+
     let text = decodeURIComponent(bodyElement.dataset.text);
 
     // 1. 获取 Voice ID
@@ -52956,11 +52993,24 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
     const spinner = bodyElement.querySelector('.loading-spinner');
     const ttsPlayer = document.getElementById('tts-audio-player');
 
-    // 播放/暂停逻辑
-    if (!ttsPlayer.paused && ttsPlayer.dataset.currentText === text && ttsPlayer.dataset.currentVoiceId === voiceId) {
-      ttsPlayer.pause();
-      return;
+    // 同一条消息点第二次：正在播放则暂停，正在请求则取消
+    if (messageKey && messageKey === currentTtsMessageKey) {
+      if (!ttsPlayer.paused && ttsPlayer.dataset.currentMessageKey === messageKey) {
+        ttsPlayer.pause();
+        currentTtsMessageKey = '';
+        if (button) button.textContent = '▶';
+        return;
+      }
+      if (currentTtsLoading && ttsAbortController) {
+        ttsAbortController.abort();
+        currentTtsMessageKey = '';
+        currentTtsLoading = false;
+        spinner.style.display = 'none';
+        if (button) button.style.display = 'flex';
+        return;
+      }
     }
+
     ttsPlayer.pause();
     document.querySelectorAll('.voice-play-btn').forEach(btn => btn.textContent = '▶');
 
@@ -52969,9 +53019,15 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
     let cachedAudio = state.ttsCache.get(cacheKey);
     if (cachedAudio) {
       console.log("从缓存播放 TTS...");
-      await playAudioFromData(cachedAudio.url, cachedAudio.type, text, voiceId, bodyElement);
+      currentTtsMessageKey = messageKey;
+      await playAudioFromData(cachedAudio.url, cachedAudio.type, text, voiceId, bodyElement, messageKey, () => { currentTtsMessageKey = ''; });
       return;
     }
+
+    currentTtsMessageKey = messageKey;
+    currentTtsLoading = true;
+    ttsAbortController = new AbortController();
+    const signal = ttsAbortController.signal;
 
     console.log(`请求 Minimax T2A v2... VoiceID: ${voiceId}, Language: ${ttsLanguage}`);
     if (button) button.style.display = 'none';
@@ -53041,7 +53097,8 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
             format: "mp3",
             channel: 1
           }
-        })
+        }),
+        signal
       });
 
       if (!response.ok) {
@@ -53070,7 +53127,7 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
       });
       const audioUrl = URL.createObjectURL(audioBlob);
 
-      await playAudioFromData(audioUrl, 'audio/mpeg', text, voiceId, bodyElement);
+      await playAudioFromData(audioUrl, 'audio/mpeg', text, voiceId, bodyElement, messageKey, () => { currentTtsMessageKey = ''; });
 
       // 写入缓存
       const reader = new FileReader();
@@ -53083,16 +53140,19 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
       reader.readAsDataURL(audioBlob);
 
     } catch (error) {
+      if (error.name === 'AbortError') return;
       console.error("TTS 生成失败:", error);
       await showCustomAlert("语音生成失败", `错误: ${error.message}`);
     } finally {
+      currentTtsLoading = false;
+      ttsAbortController = null;
       spinner.style.display = 'none';
       if (button) button.style.display = 'flex';
     }
   }
 
 
-  function playAudioFromData(audioSrc, audioType, text, voiceId, bodyElement) {
+  function playAudioFromData(audioSrc, audioType, text, voiceId, bodyElement, messageKey, onEndedCallback) {
     return new Promise((resolve, reject) => {
       const ttsPlayer = document.getElementById('tts-audio-player');
 
@@ -53100,6 +53160,7 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
       ttsPlayer.type = audioType;
       ttsPlayer.dataset.currentText = text;
       ttsPlayer.dataset.currentVoiceId = voiceId;
+      if (messageKey) ttsPlayer.dataset.currentMessageKey = messageKey;
 
       const playPromise = ttsPlayer.play();
 
@@ -53119,6 +53180,7 @@ ${werewolfGameState.discussionLog.map(d => `${d.speaker}: ${d.content}`).join('\
       ttsPlayer.onended = () => {
         const button = bodyElement.querySelector('.voice-play-btn');
         if (button) button.textContent = '▶';
+        if (typeof onEndedCallback === 'function') onEndedCallback();
       };
       ttsPlayer.onpause = () => {
         const button = bodyElement.querySelector('.voice-play-btn');
