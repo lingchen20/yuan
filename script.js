@@ -66112,6 +66112,7 @@ ${recentHistoryWithUser}
         // 显示/隐藏输入框
         document.getElementById('memory-limit-input-group').style.display = 
           e.target.checked ? 'block' : 'none';
+        updateTokenCountDisplay();
       }
     });
     
@@ -66125,6 +66126,7 @@ ${recentHistoryWithUser}
         e.target.value = clampedValue;
         chat.settings.longTermMemoryLimit = clampedValue;
         await db.chats.put(chat);
+        updateTokenCountDisplay();
       }
     });
     
