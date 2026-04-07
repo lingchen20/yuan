@@ -9,7 +9,38 @@
 // ============================================================
 
 (function () {
-  // state 通过全局作用域访问（window.state，由 init-and-state.js 初始化）
+  // 延迟获取全局变量 - 使用 Proxy 确保在访问时才从 window 获取
+  // 这样可以避免模块加载时 init-and-state.js 还未执行导致的 undefined 问题
+  const state = new Proxy({}, {
+    get: (target, prop) => window.state?.[prop]
+  });
+  
+  const musicState = new Proxy({}, {
+    get: (target, prop) => window.musicState?.[prop],
+    set: (target, prop, value) => {
+      if (window.musicState) {
+        window.musicState[prop] = value;
+        return true;
+      }
+      return false;
+    }
+  });
+  
+  const audioPlayer = new Proxy({}, {
+    get: (target, prop) => {
+      const player = window.audioPlayer;
+      if (!player) return undefined;
+      const value = player[prop];
+      return typeof value === 'function' ? value.bind(player) : value;
+    },
+    set: (target, prop, value) => {
+      if (window.audioPlayer) {
+        window.audioPlayer[prop] = value;
+        return true;
+      }
+      return false;
+    }
+  });
 
   // 来源：script.js 第 3020~3060 行
   function applyLyricsBarPosition(chat) {
@@ -1138,6 +1169,13 @@
 
   // ========== 音乐搜索 API（来自 script.js 第 38006~38870 行） ==========
 
+  if (typeof Http_Get_External === 'undefined') {
+    window.Http_Get_External = function (url) {
+      return new Promise((resolve) => {
+        fetch(url).then(res => res.json().catch(() => res.text())).then(resolve).catch(() => resolve(null));
+      });
+    }
+  }
   async function Http_Get(url) {
     return await Http_Get_External(url);
   }

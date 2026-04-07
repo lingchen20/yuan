@@ -249,6 +249,7 @@
       document.getElementById('secondary-model-input').value = preset.secondaryModel || '';
       document.getElementById('background-model-input').value = preset.backgroundModel || '';
       document.getElementById('vision-model-input').value = preset.visionModel || '';
+      document.getElementById('couplespace-model-input').value = preset.couplespaceModel || '';
 
       document.getElementById('fetch-models-btn').click();
       if (preset.secondaryProxyUrl && preset.secondaryApiKey) {
@@ -259,6 +260,9 @@
       }
       if (preset.visionProxyUrl && preset.visionApiKey) {
         document.getElementById('fetch-vision-models-btn').click();
+      }
+      if (preset.couplespaceProxyUrl && preset.couplespaceApiKey) {
+        document.getElementById('fetch-couplespace-models-btn').click();
       }
       //alert(`已加载预设 "${preset.name}"`);
     }
@@ -287,6 +291,10 @@
       visionProxyUrl: document.getElementById('vision-proxy-url').value.trim(),
       visionApiKey: document.getElementById('vision-api-key').value.trim(),
       visionModel: document.getElementById('vision-model-input').value.trim() || document.getElementById('vision-model-select').value,
+      
+      couplespaceProxyUrl: document.getElementById('couplespace-proxy-url').value.trim(),
+      couplespaceApiKey: document.getElementById('couplespace-api-key').value.trim(),
+      couplespaceModel: document.getElementById('couplespace-model-input').value.trim() || document.getElementById('couplespace-model-select').value,
 
       minimaxGroupId: document.getElementById('minimax-group-id').value.trim(),
       minimaxApiKey: document.getElementById('minimax-api-key').value.trim(),
@@ -344,6 +352,10 @@
     document.getElementById('vision-proxy-url').value = state.apiConfig.visionProxyUrl || '';
     document.getElementById('vision-api-key').value = state.apiConfig.visionApiKey || '';
     document.getElementById('vision-model-input').value = state.apiConfig.visionModel || '';
+    // 情侣空间API回填
+    document.getElementById('couplespace-proxy-url').value = state.apiConfig.couplespaceProxyUrl || '';
+    document.getElementById('couplespace-api-key').value = state.apiConfig.couplespaceApiKey || '';
+    document.getElementById('couplespace-model-input').value = state.apiConfig.couplespaceModel || '';
     document.getElementById('background-activity-switch').checked = state.globalSettings.enableBackgroundActivity || false;
     document.getElementById('background-interval-input').value = state.globalSettings.backgroundActivityInterval || 60;
     document.getElementById('block-cooldown-input').value = state.globalSettings.blockCooldownHours || 1;

@@ -3,6 +3,95 @@
 // 从 script.js 拆分（原始行范围：6093~6974 + 54517~55595）
 // ============================================================
 
+  // ============================================================
+  // 情侣空间 localStorage 数据备份和恢复辅助函数
+  // ============================================================
+  
+  /**
+   * 导出 localStorage 中的情侣空间相关数据
+   * @returns {Object} 包含所有情侣空间相关的 localStorage 数据
+   */
+  function exportCoupleSpaceLocalStorage() {
+    const localStorageData = {};
+    
+    // 需要备份的情侣空间相关键前缀
+    const coupleSpacePrefixes = [
+      'couple',           // 所有以 couple 开头的键
+    ];
+    
+    // 遍历所有 localStorage 键
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      
+      // 检查是否匹配情侣空间相关的键
+      const shouldBackup = coupleSpacePrefixes.some(prefix => key.startsWith(prefix));
+      
+      if (shouldBackup) {
+        try {
+          localStorageData[key] = localStorage.getItem(key);
+        } catch (e) {
+          console.warn(`无法备份 localStorage 键: ${key}`, e);
+        }
+      }
+    }
+    
+    console.log(`已备份 ${Object.keys(localStorageData).length} 个情侣空间相关的 localStorage 键`);
+    return localStorageData;
+  }
+  
+  /**
+   * 清理 localStorage 中的情侣空间相关数据
+   */
+  function clearCoupleSpaceLocalStorage() {
+    const keysToRemove = [];
+    
+    // 收集所有需要删除的键
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('couple')) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // 删除收集到的键
+    keysToRemove.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.warn(`无法删除 localStorage 键: ${key}`, e);
+      }
+    });
+    
+    console.log(`已清理 ${keysToRemove.length} 个情侣空间相关的 localStorage 键`);
+  }
+  
+  /**
+   * 恢复 localStorage 中的情侣空间相关数据
+   * @param {Object} localStorageData - 要恢复的 localStorage 数据
+   */
+  function restoreCoupleSpaceLocalStorage(localStorageData) {
+    if (!localStorageData || typeof localStorageData !== 'object') {
+      console.log('备份中没有 localStorage 数据，跳过恢复');
+      return;
+    }
+    
+    let restoredCount = 0;
+    for (const key in localStorageData) {
+      try {
+        localStorage.setItem(key, localStorageData[key]);
+        restoredCount++;
+      } catch (e) {
+        console.warn(`无法恢复 localStorage 键: ${key}`, e);
+      }
+    }
+    
+    console.log(`已恢复 ${restoredCount} 个情侣空间相关的 localStorage 键`);
+  }
+
+  // ============================================================
+  // 导出函数
+  // ============================================================
+
   async function exportBackup() {
     try {
       const backupData = {
@@ -101,6 +190,9 @@
       // 方案3：导出时移除API历史记录
       const cleanedChats = removeApiHistoryFromChats(chats);
 
+      // 导出情侣空间相关的 localStorage 数据
+      const coupleSpaceLocalStorage = exportCoupleSpaceLocalStorage();
+
       Object.assign(backupData, {
         chats: cleanedChats,
         worldBooks,
@@ -150,7 +242,10 @@
         auctions,
         inventory,
         emails,
-        watchTogetherPlaylist
+        watchTogetherPlaylist,
+        
+        // 情侣空间 localStorage 数据
+        localStorage: coupleSpaceLocalStorage
       });
 
       const blob = new Blob(
@@ -427,6 +522,11 @@
 
   async function importStreamedBackup(backupData) {
     try {
+      // 1. 先清理所有情侣空间相关的 localStorage
+      console.log('正在清理情侣空间 localStorage 数据...');
+      clearCoupleSpaceLocalStorage();
+      
+      // 2. 导入数据库
       await db.transaction('rw', db.tables, async () => {
 
         for (const table of db.tables) {
@@ -435,12 +535,23 @@
 
 
         for (const tableName in backupData) {
+          // 跳过 localStorage 字段，它不是数据库表
+          if (tableName === 'localStorage') continue;
+          
           if (Array.isArray(backupData[tableName])) {
             console.log(`正在导入表: ${tableName}, 记录数: ${backupData[tableName].length}`);
             await db.table(tableName).bulkPut(backupData[tableName]);
           }
         }
       });
+      
+      // 3. 如果备份中有 localStorage 数据，则恢复
+      if (backupData.localStorage) {
+        console.log('正在恢复情侣空间 localStorage 数据...');
+        restoreCoupleSpaceLocalStorage(backupData.localStorage);
+      } else {
+        console.log('备份中没有 localStorage 数据（可能是旧版备份），已清理情侣空间数据');
+      }
 
     } catch (error) {
 
@@ -542,15 +653,27 @@
       'auctions': '拍卖记录',
       'inventory': '物品清单',
       'emails': '邮件',
-      'watchTogetherPlaylist': '观影播放列表'
+      'watchTogetherPlaylist': '观影播放列表',
+      'localStorage': '情侣空间数据'
     };
 
     let foundData = false;
     for (const key in contentSummary) {
       if (backupDataContent[key] && (Array.isArray(backupDataContent[key]) ? backupDataContent[key].length > 0 : backupDataContent[key])) {
-        const count = Array.isArray(backupDataContent[key]) ? backupDataContent[key].length : 1;
+        let count;
+        let countText;
+        
+        // localStorage 是对象，显示键的数量
+        if (key === 'localStorage' && typeof backupDataContent[key] === 'object') {
+          count = Object.keys(backupDataContent[key]).length;
+          countText = `${count} 个键`;
+        } else {
+          count = Array.isArray(backupDataContent[key]) ? backupDataContent[key].length : 1;
+          countText = `${count} 条/个`;
+        }
+        
         const li = document.createElement('li');
-        li.textContent = `${contentSummary[key]}: ${count} 条/个`;
+        li.textContent = `${contentSummary[key]}: ${countText}`;
         listEl.appendChild(li);
         foundData = true;
       }
@@ -691,14 +814,27 @@
       'auctions': '拍卖记录',
       'inventory': '物品清单',
       'emails': '邮件',
-      'watchTogetherPlaylist': '观影播放列表'
+      'watchTogetherPlaylist': '观影播放列表',
+      'localStorage': '情侣空间数据'
     };
 
     let hasContent = false;
     for (const key in contentSummary) {
       if (backupDataContent[key] && (Array.isArray(backupDataContent[key]) ? backupDataContent[key].length > 0 : backupDataContent[key])) {
-        const count = Array.isArray(backupDataContent[key]) ? backupDataContent[key].length : 1;
-        const isSingleObject = !Array.isArray(backupDataContent[key]);
+        let count;
+        let countText;
+        let isSingleObject = false;
+        
+        // localStorage 是对象，显示键的数量
+        if (key === 'localStorage' && typeof backupDataContent[key] === 'object') {
+          count = Object.keys(backupDataContent[key]).length;
+          countText = `${count} 个键`;
+          isSingleObject = true; // localStorage 会覆盖现有数据
+        } else {
+          count = Array.isArray(backupDataContent[key]) ? backupDataContent[key].length : 1;
+          countText = `${count} 条/个`;
+          isSingleObject = !Array.isArray(backupDataContent[key]);
+        }
 
         const item = document.createElement('div');
         item.className = 'clear-posts-item selected';
@@ -706,7 +842,7 @@
         item.innerHTML = `
                 <div class="checkbox selected"></div>
                 <div>
-                    <span class="name">${contentSummary[key]} (${count} 条/个)</span>
+                    <span class="name">${contentSummary[key]} (${countText})</span>
                     ${isSingleObject ? '<p style="font-size: 12px; color: #ff8c00; margin: 4px 0 0;">(注意: 这将【覆盖】您当前的设置)</p>' : ''}
                 </div>
             `;
@@ -769,9 +905,22 @@
     await showCustomAlert("请稍候...", "正在合并数据，请勿关闭页面...");
 
     try {
+      // 先处理 localStorage（如果选中）
+      if (typesToMerge.includes('localStorage')) {
+        const localStorageData = dataToMerge.localStorage;
+        if (localStorageData && typeof localStorageData === 'object') {
+          console.log('正在清理并恢复情侣空间 localStorage 数据...');
+          clearCoupleSpaceLocalStorage();
+          restoreCoupleSpaceLocalStorage(localStorageData);
+        }
+      }
 
+      // 处理数据库表
       await db.transaction('rw', db.tables, async () => {
         for (const type of typesToMerge) {
+          // 跳过 localStorage，它已经在上面处理了
+          if (type === 'localStorage') continue;
+          
           const data = dataToMerge[type];
           if (!data) continue;
 
@@ -824,6 +973,11 @@
 
   async function importLegacyBackup(backupData) {
     try {
+      // 1. 先清理所有情侣空间相关的 localStorage
+      console.log('正在清理情侣空间 localStorage 数据...');
+      clearCoupleSpaceLocalStorage();
+      
+      // 2. 导入数据库
       await db.transaction('rw', db.tables, async () => {
         await db.chats.clear();
         await db.worldBooks.clear();
@@ -880,6 +1034,15 @@
         if (Array.isArray(backupData.emails)) await db.emails.bulkPut(backupData.emails);
         if (Array.isArray(backupData.watchTogetherPlaylist)) await db.watchTogetherPlaylist.bulkPut(backupData.watchTogetherPlaylist);
       });
+      
+      // 3. 如果备份中有 localStorage 数据，则恢复
+      if (backupData.localStorage) {
+        console.log('正在恢复情侣空间 localStorage 数据...');
+        restoreCoupleSpaceLocalStorage(backupData.localStorage);
+      } else {
+        console.log('备份中没有 localStorage 数据（可能是旧版备份），已清理情侣空间数据');
+      }
+      
     } catch (error) {
       throw new Error(`旧版备份数据写入数据库失败: ${error.message}`);
     }
@@ -998,6 +1161,17 @@
           data: currentSliceData
         }));
       }
+      
+      // 导出情侣空间 localStorage 数据到单独的文件
+      const coupleSpaceLocalStorage = exportCoupleSpaceLocalStorage();
+      if (Object.keys(coupleSpaceLocalStorage).length > 0) {
+        console.log('正在打包情侣空间 localStorage 数据...');
+        zip.file('localStorage.json', JSON.stringify({
+          version: 4,
+          type: 'localStorage',
+          data: coupleSpaceLocalStorage
+        }));
+      }
 
       console.log("所有切片已打包，开始流式下载ZIP...");
 
@@ -1095,6 +1269,11 @@
           await writer.write(encoder.encode(',\n'));
         }
       }
+      
+      // 导出情侣空间 localStorage 数据
+      const coupleSpaceLocalStorage = exportCoupleSpaceLocalStorage();
+      await writer.write(encoder.encode(',\n"localStorage": '));
+      await writer.write(encoder.encode(JSON.stringify(coupleSpaceLocalStorage)));
 
 
       await writer.write(encoder.encode('\n}\n}'));
@@ -1131,6 +1310,10 @@
         backupData.data[tableName] = tableData;
         console.log(`已打包表: ${tableName}, 记录数: ${tableData.length}`);
       }
+      
+      // 导出情侣空间 localStorage 数据
+      const coupleSpaceLocalStorage = exportCoupleSpaceLocalStorage();
+      backupData.data.localStorage = coupleSpaceLocalStorage;
 
       const blob = new Blob(
         [JSON.stringify(backupData, null, 2)], {
@@ -1977,7 +2160,643 @@
   window.viewDataDistribution = viewDataDistribution;
   window.renderDistributionData = renderDistributionData;
 
-  // ========== 从 script.js 迁移：restoreFromGitHub, startAutoBackupTimer, stopAutoBackupTimer ==========
+  // ========== 从 script.js 迁移：GitHub 备份功能 ==========
+  
+  // 解决中文 Base64 编码问题的辅助函数
+  function utf8_to_b64(str) {
+    return window.btoa(unescape(encodeURIComponent(str)));
+  }
+
+  function b64_to_utf8(str) {
+    return decodeURIComponent(escape(window.atob(str)));
+  }
+
+  async function uploadToGitHub(isSilent = false) {
+    let loadingToast = null;
+    // --- 1. 基础配置检查 ---
+    if (!state.apiConfig.githubEnable) {
+      if (!isSilent) await showCustomAlert('未开启', '请先在"API设置" -> "GitHub 云备份"中开启此功能。');
+      return;
+    }
+
+    const username = state.apiConfig.githubUsername;
+    const repo = state.apiConfig.githubRepo;
+    const token = state.apiConfig.githubToken;
+    const baseFilename = (state.apiConfig.githubFilename || 'ephone_backup').replace(/\.json$/i, '');
+
+    if (!username || !repo || !token) {
+      if (!isSilent) await showCustomAlert("配置缺失", "请先在设置中保存 GitHub 用户名、仓库名和 Token！");
+      return;
+    }
+
+    // --- 2. 确认提示 ---
+    if (!isSilent) {
+      const confirmed = await showCustomConfirm(
+        '确认上传备份',
+        `即将备份数据到 GitHub 仓库：<br><strong>${username}/${repo}</strong><br><br>采用<strong style="color:green">流式上传</strong> 模式。<br>速度将显著提升。<br>确定要立即上传吗？`,
+        { confirmText: '开始极速上传' }
+      );
+      if (!confirmed) return;
+      await showCustomAlert("准备中...", "正在初始化并发上传...");
+    } else {
+      console.log("⏳ [自动备份] 开始后台静默备份到 GitHub...");
+
+      loadingToast = showToast('正在云端备份...', 'loading');
+    }
+
+    try {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const folderPath = `backups/${dateStr}/`;
+
+      // 【核心设置】
+      const RAW_SIZE_LIMIT = 15 * 1024 * 1024;
+
+      // 2. 增大数据库读取批次：加快读取速度
+      const DB_BATCH_SIZE = 50;
+
+      // 3. 增加并发数：同时上传 6 个分片 (GitHub API 通常允许较高并发)
+      const MAX_CONCURRENT_UPLOADS = 4;
+
+      let currentSliceIndex = 1;
+      let currentSliceData = {};
+      let currentSliceRawSize = 0;
+
+      // 并发控制队列
+      const activeUploads = new Set();
+      const errors = []; // 收集错误
+
+      // --- 内部函数：执行单个分片上传 (独立作用域) ---
+      const triggerUploadTask = async (partIndex, dataSnapshot) => {
+        const partFilename = `${baseFilename}_part${partIndex}.json`;
+        const finalPath = `${folderPath}${partFilename}`;
+
+        // 构造分片对象
+        const fileContentObj = {
+          version: 4,
+          timestamp: Date.now(),
+          type: 'slice',
+          part: partIndex,
+          data: dataSnapshot
+        };
+
+        const contentString = JSON.stringify(fileContentObj);
+        const contentBase64 = utf8_to_b64(contentString);
+        const uploadSizeMB = (contentBase64.length / 1024 / 1024).toFixed(2);
+
+        if (!isSilent) {
+          // 更新 UI 显示当前正在进行的任务数量
+          const modalBody = document.getElementById('custom-modal-body');
+          if (modalBody) {
+            modalBody.innerHTML = `<div class="spinner" style="margin: 20px auto;"></div>
+                    <p style="text-align:center;">
+                        正在并发上传中...<br>
+                        当前队列: <b>${activeUploads.size + 1}</b> / ${MAX_CONCURRENT_UPLOADS}<br>
+                        正在处理分片: #${partIndex} (${uploadSizeMB} MB)
+                    </p>`;
+          }
+        } else {
+          console.log(`[GitHub] 开始上传分片 #${partIndex}...`);
+        }
+
+        // API URL
+        let apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${finalPath}`;
+        if (state.apiConfig.githubProxyEnable && state.apiConfig.githubProxyUrl) {
+          const relativePath = apiUrl.replace("https://api.github.com", "");
+          apiUrl = state.apiConfig.githubProxyUrl.replace(/\/$/, '') + relativePath;
+        }
+
+        // --- 步骤 A: 获取 SHA ---
+        let sha = null;
+        try {
+          const checkUrl = `${apiUrl}${apiUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+          const getRes = await fetch(checkUrl, {
+            method: 'GET',
+            headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+          });
+          if (getRes.ok) {
+            const fileData = await getRes.json();
+            sha = fileData.sha;
+          }
+        } catch (e) { console.warn(`分片 #${partIndex} 获取SHA失败(可能是新文件)，继续上传`, e); }
+
+        // --- 步骤 B: 上传 (带重试) ---
+        let retryCount = 0;
+        const maxRetries = 3;
+        let success = false;
+        let lastError = null;
+
+        while (!success && retryCount < maxRetries) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 180000); // 3分钟超时
+
+          try {
+            const putRes = await fetch(apiUrl, {
+              method: 'PUT',
+              headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: `Auto Backup: ${dateStr} (Part ${partIndex})`,
+                content: contentBase64,
+                sha: sha || undefined
+              }),
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!putRes.ok) {
+              const err = await putRes.json();
+              throw new Error(err.message || putRes.statusText);
+            }
+
+            success = true;
+            console.log(`✅ [GitHub] 分片 #${partIndex} 上传成功`);
+
+          } catch (err) {
+            clearTimeout(timeoutId);
+            lastError = err;
+            retryCount++;
+            console.warn(`⚠️ 分片 #${partIndex} 第 ${retryCount} 次重试...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+
+        if (!success) {
+          throw new Error(`分片 #${partIndex} 最终失败: ${lastError.message}`);
+        }
+      };
+
+      // --- 3. 流式遍历数据库 ---
+      const tablesToBackup = db.tables.map(t => t.name);
+
+      for (const tableName of tablesToBackup) {
+        const totalCount = await db.table(tableName).count();
+        if (totalCount === 0) continue;
+
+        let offset = 0;
+
+        while (offset < totalCount) {
+          const batch = await db.table(tableName).offset(offset).limit(DB_BATCH_SIZE).toArray();
+
+          for (const record of batch) {
+            const recordStr = JSON.stringify(record);
+            const recordSize = recordStr.length + tableName.length + 5;
+
+            // 检查是否需要切片
+            if (currentSliceRawSize + recordSize > RAW_SIZE_LIMIT) {
+
+              // --- 核心并发逻辑 ---
+              // 1. 创建当前数据的快照 (深拷贝或直接引用，这里直接用引用因为下面会重置变量)
+              const dataSnapshot = currentSliceData;
+              const indexSnapshot = currentSliceIndex;
+
+              // 2. 创建 Promise 任务
+              const taskPromise = triggerUploadTask(indexSnapshot, dataSnapshot).catch(err => {
+                console.error(err);
+                errors.push(err.message);
+              });
+
+              // 3. 加入队列
+              activeUploads.add(taskPromise);
+              // 任务完成后从队列移除
+              taskPromise.finally(() => activeUploads.delete(taskPromise));
+
+              // 4. 如果队列满了，等待最早的一个完成 (Promise.race)
+              if (activeUploads.size >= MAX_CONCURRENT_UPLOADS) {
+                await Promise.race(activeUploads);
+              }
+
+              // 5. 如果有错误，立即停止
+              if (errors.length > 0) break;
+
+              // 6. 重置容器
+              currentSliceData = {};
+              currentSliceRawSize = 0;
+              currentSliceIndex++;
+            }
+
+            if (!currentSliceData[tableName]) {
+              currentSliceData[tableName] = [];
+            }
+            currentSliceData[tableName].push(record);
+            currentSliceRawSize += recordSize;
+          }
+
+          if (errors.length > 0) break;
+          offset += DB_BATCH_SIZE;
+        }
+        if (errors.length > 0) break;
+      }
+
+      // --- 4. 处理最后一个分片 ---
+      if (currentSliceRawSize > 0 && errors.length === 0) {
+        const taskPromise = triggerUploadTask(currentSliceIndex, currentSliceData).catch(err => {
+          errors.push(err.message);
+        });
+        activeUploads.add(taskPromise);
+      }
+
+      // --- 5. 等待所有剩余任务完成 ---
+      if (!isSilent) {
+        const modalBody = document.getElementById('custom-modal-body');
+        if (modalBody) modalBody.innerHTML += `<p style="color:blue">正在等待最后 ${activeUploads.size} 个分片完成...</p>`;
+      }
+
+      await Promise.all(activeUploads);
+
+      // --- 6. 结果处理 ---
+      if (errors.length > 0) {
+        throw new Error(`上传过程中出现错误:\n${errors.join('\n')}`);
+      }
+
+      if (!isSilent) {
+        await showCustomAlert(
+          "✅ 备份成功",
+          `全量数据并发上传完成！<br>共上传 ${currentSliceIndex} 个分片。<br><strong>路径：</strong> ${folderPath}`
+        );
+      } else {
+        console.log(`✅ [自动备份] 成功！`);
+        if (loadingToast) {
+          loadingToast.classList.remove('visible');
+          setTimeout(() => loadingToast.remove(), 400);
+        }
+        showToast('云端备份已完成', 'success');
+      }
+
+    } catch (error) {
+      console.error("GitHub 上传失败:", error);
+      let errorMsg = error.message;
+      if (error.name === 'AbortError') errorMsg = "上传超时 (网络较慢或代理不稳定)。";
+
+      if (!isSilent) {
+        await showCustomAlert("❌ 备份失败", `上传中断：\n${errorMsg}`);
+      } else {
+        // 【修改点 4】: 失败时显示警告图标，但不打断用户
+        if (loadingToast) {
+          loadingToast.classList.remove('visible');
+          setTimeout(() => loadingToast.remove(), 400);
+        }
+        showToast('备份失败: 网络错误', 'error');
+      }
+    }
+  }
+
+  // ========================================
+  // 大数据云备份 (A+B方案: pako压缩 + Git Blob API)
+  // ========================================
+  async function uploadToGitHubLargeData(isSilent = false) {
+    let loadingToast = null;
+
+    // --- 1. 基础配置检查 ---
+    if (!state.apiConfig.githubEnable) {
+      if (!isSilent) await showCustomAlert('未开启', '请先在"API设置" -> "GitHub 云备份"中开启此功能。');
+      return;
+    }
+
+    const username = state.apiConfig.githubUsername;
+    const repo = state.apiConfig.githubRepo;
+    const token = state.apiConfig.githubToken;
+    const branch = state.apiConfig.githubBranch || 'main';
+    const baseFilename = (state.apiConfig.githubFilename || 'ephone_backup').replace(/\.json$/i, '');
+
+    if (!username || !repo || !token) {
+      if (!isSilent) await showCustomAlert('配置缺失', '请先在设置中保存 GitHub 用户名、仓库名和 Token！');
+      return;
+    }
+
+    // 检查 pako 是否可用
+    if (typeof pako === 'undefined') {
+      if (!isSilent) await showCustomAlert('组件缺失', '压缩库 pako 未加载，请检查网络后刷新页面重试。');
+      return;
+    }
+
+    // --- 2. 确认提示 ---
+    if (!isSilent) {
+      const confirmed = await showCustomConfirm(
+        '确认大数据备份',
+        `即将备份数据到 GitHub 仓库：<br><strong>${username}/${repo}</strong><br><br>采用<strong style="color:green">压缩 + Git Blob API</strong> 模式。<br>适合大数据量用户（几百MB+），速度更快更稳定。<br>确定要开始吗？`,
+        { confirmText: '开始大数据备份' }
+      );
+      if (!confirmed) return;
+      await showCustomAlert("准备中...", "正在初始化大数据备份...");
+    } else {
+      console.log("⏳ [大数据备份] 开始后台静默备份到 GitHub...");
+      loadingToast = showToast('正在大数据云备份...', 'loading');
+    }
+
+    try {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const folderPath = `backups/${dateStr}`;
+
+      // 核心设置
+      const RAW_SIZE_LIMIT = 3 * 1024 * 1024; // 3MB per slice (压缩前)
+      const DB_BATCH_SIZE = 50;
+      const MAX_CONCURRENT_UPLOADS = 6;
+
+      // GitHub API 基础 URL (支持代理)
+      const getApiUrl = (path) => {
+        let url = `https://api.github.com${path}`;
+        if (state.apiConfig.githubProxyEnable && state.apiConfig.githubProxyUrl) {
+          url = state.apiConfig.githubProxyUrl.replace(/\/$/, '') + path;
+        }
+        return url;
+      };
+
+      const ghHeaders = {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json'
+      };
+
+      // --- 辅助函数：创建 Git Blob ---
+      const createBlob = async (contentBase64) => {
+        const url = getApiUrl(`/repos/${username}/${repo}/git/blobs`);
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while (retryCount < maxRetries) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 180000);
+
+          try {
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: ghHeaders,
+              body: JSON.stringify({
+                content: contentBase64,
+                encoding: 'base64'
+              }),
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.message || res.statusText);
+            }
+
+            const data = await res.json();
+            return data.sha;
+          } catch (err) {
+            clearTimeout(timeoutId);
+            retryCount++;
+            if (retryCount >= maxRetries) throw new Error(`Blob 创建失败: ${err.message}`);
+            console.warn(`⚠️ Blob 创建第 ${retryCount} 次重试...`);
+            await new Promise(r => setTimeout(r, 2000 * retryCount));
+          }
+        }
+      };
+
+      // --- 辅助函数：压缩并编码 ---
+      const compressAndEncode = (jsonString) => {
+        const compressed = pako.gzip(jsonString);
+        // 将 Uint8Array 转为 Base64
+        let binary = '';
+        const bytes = compressed;
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        }
+        return window.btoa(binary);
+      };
+
+      // 收集所有分片的 blob SHA
+      const blobEntries = []; // { path, sha }
+      const errors = [];
+      const activeUploads = new Set();
+      let currentSliceIndex = 1;
+      let currentSliceData = {};
+      let currentSliceRawSize = 0;
+      let totalCompressedSize = 0;
+
+      // --- 上传单个分片为 Blob ---
+      const uploadSliceAsBlob = async (partIndex, dataSnapshot) => {
+        const fileContentObj = {
+          version: 5,
+          timestamp: Date.now(),
+          type: 'slice_compressed',
+          compression: 'gzip',
+          part: partIndex,
+          data: dataSnapshot
+        };
+
+        const jsonString = JSON.stringify(fileContentObj);
+        const rawSizeMB = (jsonString.length / 1024 / 1024).toFixed(2);
+
+        // 压缩
+        const contentBase64 = compressAndEncode(jsonString);
+        const compressedSizeMB = (contentBase64.length * 0.75 / 1024 / 1024).toFixed(2);
+        totalCompressedSize += contentBase64.length * 0.75;
+
+        if (!isSilent) {
+          const modalBody = document.getElementById('custom-modal-body');
+          if (modalBody) {
+            modalBody.innerHTML = `<div class="spinner" style="margin: 20px auto;"></div>
+              <p style="text-align:center;">
+                正在压缩上传中...<br>
+                队列: <b>${activeUploads.size + 1}</b> / ${MAX_CONCURRENT_UPLOADS}<br>
+                分片 #${partIndex}: ${rawSizeMB} MB → ${compressedSizeMB} MB (压缩后)
+              </p>`;
+          }
+        } else {
+          console.log(`[大数据备份] 分片 #${partIndex}: ${rawSizeMB}MB → ${compressedSizeMB}MB`);
+        }
+
+        // 创建 Blob
+        const partFilename = `${baseFilename}_part${partIndex}.json.gz`;
+        const sha = await createBlob(contentBase64);
+
+        blobEntries.push({
+          path: `${folderPath}/${partFilename}`,
+          sha: sha
+        });
+
+        console.log(`✅ [大数据备份] 分片 #${partIndex} Blob 已创建 (SHA: ${sha.substring(0, 7)})`);
+      };
+
+      // --- 3. 流式遍历数据库 ---
+      const tablesToBackup = db.tables.map(t => t.name);
+
+      for (const tableName of tablesToBackup) {
+        const totalCount = await db.table(tableName).count();
+        if (totalCount === 0) continue;
+
+        let offset = 0;
+
+        while (offset < totalCount) {
+          const batch = await db.table(tableName).offset(offset).limit(DB_BATCH_SIZE).toArray();
+
+          for (const record of batch) {
+            const recordStr = JSON.stringify(record);
+            const recordSize = recordStr.length + tableName.length + 5;
+
+            if (currentSliceRawSize + recordSize > RAW_SIZE_LIMIT) {
+              const dataSnapshot = currentSliceData;
+              const indexSnapshot = currentSliceIndex;
+
+              const taskPromise = uploadSliceAsBlob(indexSnapshot, dataSnapshot).catch(err => {
+                console.error(err);
+                errors.push(err.message);
+              });
+
+              activeUploads.add(taskPromise);
+              taskPromise.finally(() => activeUploads.delete(taskPromise));
+
+              if (activeUploads.size >= MAX_CONCURRENT_UPLOADS) {
+                await Promise.race(activeUploads);
+              }
+
+              if (errors.length > 0) break;
+
+              currentSliceData = {};
+              currentSliceRawSize = 0;
+              currentSliceIndex++;
+            }
+
+            if (!currentSliceData[tableName]) {
+              currentSliceData[tableName] = [];
+            }
+            currentSliceData[tableName].push(record);
+            currentSliceRawSize += recordSize;
+          }
+
+          if (errors.length > 0) break;
+          offset += DB_BATCH_SIZE;
+        }
+        if (errors.length > 0) break;
+      }
+
+      // --- 4. 处理最后一个分片 ---
+      if (currentSliceRawSize > 0 && errors.length === 0) {
+        const taskPromise = uploadSliceAsBlob(currentSliceIndex, currentSliceData).catch(err => {
+          errors.push(err.message);
+        });
+        activeUploads.add(taskPromise);
+      }
+
+      // --- 5. 等待所有 Blob 上传完成 ---
+      if (!isSilent) {
+        const modalBody = document.getElementById('custom-modal-body');
+        if (modalBody) modalBody.innerHTML = `<div class="spinner" style="margin: 20px auto;"></div>
+          <p style="text-align:center;">正在等待最后 ${activeUploads.size} 个分片完成...</p>`;
+      }
+
+      await Promise.all(activeUploads);
+
+      if (errors.length > 0) {
+        throw new Error(`上传过程中出现错误:\n${errors.join('\n')}`);
+      }
+
+      // --- 6. 用 Git Tree + Commit API 一次性提交 ---
+      if (!isSilent) {
+        const modalBody = document.getElementById('custom-modal-body');
+        if (modalBody) modalBody.innerHTML = `<div class="spinner" style="margin: 20px auto;"></div>
+          <p style="text-align:center;">所有分片已上传，正在创建 Git Commit...</p>`;
+      }
+
+      // 6a. 获取当前分支的最新 commit SHA
+      const refUrl = getApiUrl(`/repos/${username}/${repo}/git/ref/heads/${branch}`);
+      const refRes = await fetch(refUrl, { headers: ghHeaders });
+      if (!refRes.ok) throw new Error(`获取分支信息失败: ${refRes.status}`);
+      const refData = await refRes.json();
+      const latestCommitSha = refData.object.sha;
+
+      // 6b. 获取该 commit 的 tree SHA
+      const commitUrl = getApiUrl(`/repos/${username}/${repo}/git/commits/${latestCommitSha}`);
+      const commitRes = await fetch(commitUrl, { headers: ghHeaders });
+      if (!commitRes.ok) throw new Error(`获取 Commit 信息失败: ${commitRes.status}`);
+      const commitData = await commitRes.json();
+      const baseTreeSha = commitData.tree.sha;
+
+      // 6c. 创建新 Tree
+      const treeItems = blobEntries.map(entry => ({
+        path: entry.path,
+        mode: '100644',
+        type: 'blob',
+        sha: entry.sha
+      }));
+
+      const treeUrl = getApiUrl(`/repos/${username}/${repo}/git/trees`);
+      const treeRes = await fetch(treeUrl, {
+        method: 'POST',
+        headers: ghHeaders,
+        body: JSON.stringify({
+          base_tree: baseTreeSha,
+          tree: treeItems
+        })
+      });
+      if (!treeRes.ok) {
+        const treeErr = await treeRes.json();
+        throw new Error(`创建 Tree 失败: ${treeErr.message}`);
+      }
+      const treeData = await treeRes.json();
+
+      // 6d. 创建 Commit
+      const newCommitUrl = getApiUrl(`/repos/${username}/${repo}/git/commits`);
+      const newCommitRes = await fetch(newCommitUrl, {
+        method: 'POST',
+        headers: ghHeaders,
+        body: JSON.stringify({
+          message: `Large Data Backup: ${dateStr} (${blobEntries.length} parts, compressed)`,
+          tree: treeData.sha,
+          parents: [latestCommitSha]
+        })
+      });
+      if (!newCommitRes.ok) {
+        const commitErr = await newCommitRes.json();
+        throw new Error(`创建 Commit 失败: ${commitErr.message}`);
+      }
+      const newCommitData = await newCommitRes.json();
+
+      // 6e. 更新分支引用
+      const updateRefUrl = getApiUrl(`/repos/${username}/${repo}/git/refs/heads/${branch}`);
+      const updateRefRes = await fetch(updateRefUrl, {
+        method: 'PATCH',
+        headers: ghHeaders,
+        body: JSON.stringify({
+          sha: newCommitData.sha
+        })
+      });
+      if (!updateRefRes.ok) {
+        const refErr = await updateRefRes.json();
+        throw new Error(`更新分支失败: ${refErr.message}`);
+      }
+
+      // --- 7. 成功 ---
+      const totalCompressedMB = (totalCompressedSize / 1024 / 1024).toFixed(2);
+
+      if (!isSilent) {
+        await showCustomAlert(
+          "✅ 大数据备份成功",
+          `全量数据压缩上传完成！<br>共 ${blobEntries.length} 个分片，压缩后总计约 ${totalCompressedMB} MB。<br><strong>路径：</strong> ${folderPath}/`
+        );
+      } else {
+        console.log(`✅ [大数据备份] 成功！${blobEntries.length} 个分片，${totalCompressedMB} MB`);
+        if (loadingToast) {
+          loadingToast.classList.remove('visible');
+          setTimeout(() => loadingToast.remove(), 400);
+        }
+        showToast('大数据云备份已完成', 'success');
+      }
+
+    } catch (error) {
+      console.error("大数据备份失败:", error);
+      let errorMsg = error.message;
+      if (error.name === 'AbortError') errorMsg = "上传超时 (网络较慢或代理不稳定)。";
+
+      if (!isSilent) {
+        await showCustomAlert("❌ 大数据备份失败", `上传中断：\n${errorMsg}`);
+      } else {
+        if (loadingToast) {
+          loadingToast.classList.remove('visible');
+          setTimeout(() => loadingToast.remove(), 400);
+        }
+        showToast('大数据备份失败', 'error');
+      }
+    }
+  }
+
+  // ========== 自动备份定时器 ==========
   let backupIntervalId = null;
 
   function startAutoBackupTimer(intervalMinutes) {
@@ -2139,5 +2958,7 @@
   }
 
   window.restoreFromGitHub = restoreFromGitHub;
+  window.uploadToGitHub = uploadToGitHub;
+  window.uploadToGitHubLargeData = uploadToGitHubLargeData;
   window.startAutoBackupTimer = startAutoBackupTimer;
   window.stopAutoBackupTimer = stopAutoBackupTimer;

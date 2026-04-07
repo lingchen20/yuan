@@ -22,21 +22,17 @@ class UpdateNotification {
       <div class="update-item important-note">注意：首次打开最好使用魔法</div>
       <div class="update-item tips">有任何问题请通过DC私信联系 <a href="https://discord.com/users/1353222930875551804" target="_blank" style="color: #4A9EFF;">点击前往</a>，其他渠道可能无法及时回复</div>
       <div class="update-divider">本次更新内容</div>
-      <div class="update-item important-note" style="font-size: 15px; font-weight: bold; color: #FF4757; border: 2px solid #FF4757; background: rgba(255,71,87,0.1);">⚠️ 拆分了文件，可能有BUG，请及时反馈！</div>
-      <div class="update-item">1. 尝试修复了内存泄露问题，应该可能不会出现卡着不动的问题</div>
-      <div class="update-item">2. 感觉现在聊天详情和API设置页面太拥挤了，整合了一下，然后搓了个变色版的API设置页面</div>
-      <div class="update-item">3. 修复清除冗余数据的时候会把渲染器没有启用的也删掉的BUG</div>
-      <div class="update-item">4. 新增识图优化，应该可以省下TOKEN</div>
-      <div class="update-item">5. 新增免费生图的KEY</div>
-      <div class="update-item">6. 新增情侣空间</div>
-      <div class="update-item">7. 新增变量总结</div>
-      <div class="update-item">8. 新增长期记忆和结构性表格可以批量选取，复制、删除和单独导入导出（感谢许愿）</div>
-      <div class="update-item">9. 新增自定义时间可以自然流逝</div>
-      <div class="update-item">10. 尝试修复动态没有字的BUG</div>
-      <div class="update-item">11. 新增专属识图API</div>
-      <div class="update-item">12. 新增兼容弹窗下拉框</div>
-      <div class="update-item">13. 修复锁屏滑动、总结点不动，排除消息的按钮等BUG</div>
-      <div class="update-item">14. 新增情侣空间天数可以自定义，大部分地方可以编辑</div>
+      <div class="update-item">修复：</div>
+      <div class="update-item">1. 修复邮箱BUG</div>
+      <div class="update-item">2. 修复，记忆表格和向量记忆总结没有过滤隐藏消息的BUG</div>
+      <div class="update-item">3. 修复GitHub云备份按钮的BUG</div>
+      <div class="update-item">4. 修复情侣空间导入导出问题</div>
+      <div class="update-item">5. 修复一起听的BUG</div>
+      <div class="update-item">6. 修复情侣空间CHAR写日记的BUG</div>
+      <div class="update-item">7. 修复情侣空间编辑的BUG</div>
+      <div class="update-item">8. 修复识图API配置刷新后消失的BUG</div>
+      <div class="update-item">新增：</div>
+      <div class="update-item">1. 新增情侣空间专属API</div>
     `;
 
     return `
@@ -44,7 +40,7 @@ class UpdateNotification {
         <div id="update-notification-modal">
           <img src="https://i.postimg.cc/hGh6rJ5r/retouch-2026013121094970.png" class="update-decoration-img">
           <div class="update-notification-header">
-            <div class="update-title">3.29更新</div>
+            <div class="update-title">4.7更新</div>
           </div>
           
           <div class="update-notification-body">

@@ -169,13 +169,15 @@
       tabs.push({ id: 'api', label: 'API', elements: collectElements(apiGroups) });
     }
 
-    // === Tab 2: AI行为（副API + 后台活动API + 识图API + 后台活动 + AI行为控制） ===
+    // === Tab 2: AI行为（副API + 后台活动API + 识图API + 情侣空间API + 后台活动 + AI行为控制） ===
     const aiGroups = [];
     g = takeGroup(findByKey('apiSecondarySettings'));  // 副 API
     if (g) aiGroups.push(g);
     g = takeGroup(findByKey('apiBackgroundSettings')); // 后台活动 API 设置
     if (g) aiGroups.push(g);
     g = takeGroup(findByKey('apiVisionSettings'));     // 识图 API 设置
+    if (g) aiGroups.push(g);
+    g = takeGroup(findByKey('apiCoupleSpaceSettings')); // 情侣空间 API 设置
     if (g) aiGroups.push(g);
     g = takeGroup(findByKey('apiBgActivitySettings')); // 后台活动
     if (g) aiGroups.push(g);

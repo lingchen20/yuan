@@ -1175,7 +1175,8 @@ async function executeVectorExtraction(chat, messages, updateTimestamp = false) 
 async function openVectorSummaryMenu(chat) {
   const vm = window.vectorMemoryManager.getVectorMemory(chat);
   const lastTimestamp = vm.lastExtractionTimestamp || 0;
-  const totalMessages = chat.history.length;
+  // 只统计非隐藏消息（与聊天详情保持一致）
+  const totalMessages = chat.history.filter(m => !m.isHidden).length;
   const newMessages = chat.history.filter(m => m.timestamp > lastTimestamp && (!m.isHidden || (m.role === 'system' && m.content && m.content.includes('内心独白'))));
   const lastDateStr = lastTimestamp ? new Date(lastTimestamp).toLocaleString('zh-CN') : '从未更新';
 
@@ -1287,7 +1288,8 @@ async function handleVectorNewMessagesSummary(chat) {
 
 // ===== 向量记忆 - 范围总结 =====
 async function handleVectorRangeSummary(chat) {
-  const totalMessages = chat.history.length;
+  // 只统计非隐藏消息（与聊天详情保持一致）
+  const totalMessages = chat.history.filter(m => !m.isHidden).length;
 
   return new Promise(resolve => {
     window._modalResolve = resolve;
@@ -1370,7 +1372,8 @@ async function handleVectorResetTimestamp(chat) {
   const vm = window.vectorMemoryManager.getVectorMemory(chat);
   const lastTimestamp = vm.lastExtractionTimestamp || 0;
   const lastDateStr = lastTimestamp ? new Date(lastTimestamp).toLocaleString('zh-CN') : '从未更新';
-  const totalMessages = chat.history.length;
+  // 只统计非隐藏消息（与聊天详情保持一致）
+  const totalMessages = chat.history.filter(m => !m.isHidden).length;
   const newMessages = chat.history.filter(m => m.timestamp > lastTimestamp && (!m.isHidden || (m.role === 'system' && m.content && m.content.includes('内心独白'))));
 
   const message = `当前状态：

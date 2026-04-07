@@ -1874,6 +1874,41 @@
             </div>
         </div>
 
+        <!-- 情侣空间 API 设置 -->
+        <div class="settings-header" data-lang-key="apiCoupleSpaceSettings">情侣空间 API 设置</div>
+        <div class="settings-section">
+            <div class="settings-tip-wrapper">
+                <div class="settings-tip-content">
+                    提示: 情侣空间API用于生成日记、相册、时光轴等情侣空间内容。留空则使用主API。建议配置更便宜的模型以节省费用。
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiCoupleSpaceProxyUrlLabel">反代地址</label>
+                <div class="settings-right">
+                    <input type="text" id="couplespace-proxy-url" placeholder="留空使用主API">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiCoupleSpaceKeyLabel">API Key</label>
+                <div class="settings-right">
+                    <input type="password" id="couplespace-api-key" placeholder="可选">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiCoupleSpaceModelLabel">模型（手写）</label>
+                <div class="settings-right">
+                    <input type="text" id="couplespace-model-input" placeholder="可手写模型名称或从下方拉取自动填入" style="flex-grow: 1;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiFetchCoupleSpaceModelsBtn">拉取模型</label>
+                <div class="settings-right">
+                    <select id="couplespace-model-select" class="settings-select" style="flex-grow: 1; width: auto;"></select>
+                    <button id="fetch-couplespace-models-btn" class="settings-mini-btn">拉取</button>
+                </div>
+            </div>
+        </div>
+
         <!-- 参数设置 -->
         <div class="settings-header">参数设置</div>
         <div class="settings-section">
@@ -2552,7 +2587,7 @@
         </div>
 
         <!-- 系统级通知 -->
-        <div class="settings-header">系统级通知 <span style="font-size: 12px; color: #999; margin-left: 10px;">v2.1.0</span></div>
+        <div class="settings-header">系统级通知 <span style="font-size: 12px; color: #999; margin-left: 10px;">v2.1.5</span></div>
         <div class="settings-section">
             <!-- 1. 主开关 -->
             <div class="settings-item">
@@ -2781,13 +2816,13 @@
             <div class="settings-item">
                 <label>匿名许愿 / 反馈</label>
                 <div class="settings-right">
-                    <a href="https://betweenus.today/creator/yuanyuan" target="_blank" class="settings-mini-btn" style="text-decoration: none; color: inherit;">前往</a>
+                    <a href="javascript:void(0)" onclick="showCustomAlert('功能暂时关闭', '许愿/反馈功能暂时关闭，后续可能会重新开放，敬请期待！')" class="settings-mini-btn" style="text-decoration: none; color: inherit;">前往</a>
                 </div>
             </div>
             <div class="settings-item">
                 <label>公开反馈（可收到回复）</label>
                 <div class="settings-right">
-                    <a href="https://www.kdocs.cn/l/csKWtfIfdwDy" target="_blank" class="settings-mini-btn" style="text-decoration: none; color: inherit;">前往</a>
+                    <a href="javascript:void(0)" onclick="showCustomAlert('功能暂时关闭', '许愿/反馈功能暂时关闭，后续可能会重新开放，敬请期待！')" class="settings-mini-btn" style="text-decoration: none; color: inherit;">前往</a>
                 </div>
             </div>
         </div>

@@ -2151,9 +2151,13 @@ window.addEventListener('message', function(e) {
     checkTodayAnniversaries();
     updateHomeDistance();
   }
-  // AI diary response from parent
+  // AI diary response from parent (手动触发)
   if (e.data && e.data.type === 'coupleSpaceDiaryAiResult') {
     handleAiDiaryResult(e.data);
+  }
+  // Auto diary written notification (自动定时写入)
+  if (e.data && e.data.type === 'coupleSpaceDiaryAutoWritten') {
+    handleAutoDiaryWritten(e.data);
   }
   // AI comment response from parent
   if (e.data && e.data.type === 'coupleSpaceDiaryCommentResult') {
@@ -2423,7 +2427,7 @@ function toggleDiaryFab() {
   if (diaryFabOpen) {
     menu.style.display = 'flex';
     menu.innerHTML =
-      '<div class="diary-fab-option animate-fade-in" onclick="openDiaryWrite(\'user\')">' +
+      '<div class="diary-fab-option animate-fade-in" onclick="openDiaryWrite()">' +
         '<div class="diary-fab-option-icon"><svg class="icon-md" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>' +
         '我来写' +
       '</div>' +
@@ -2445,27 +2449,56 @@ function closeDiaryFab() {
 let editingDiaryMood = '';
 let editingDiaryId = null;
 function openDiaryWrite(existingId) {
+  console.log('[写日记] 打开写日记页面，existingId:', existingId);
   closeDiaryFab();
   editingDiaryId = existingId || null;
+  
+  // 编辑模式：直接加载现有数据，不清空
+  if (existingId) {
+    console.log('[写日记] 进入编辑模式');
+    var diaries = getDiaries();
+    console.log('[写日记] 获取到的日记列表:', diaries);
+    var d = diaries.find(function(x){ return x.id === existingId; });
+    console.log('[写日记] 找到的日记数据:', d);
+    if (d) {
+      // 先设置心情，再渲染
+      editingDiaryMood = d.mood || '';
+      console.log('[写日记] 设置心情:', editingDiaryMood);
+      console.log('[写日记] 设置标题:', d.title);
+      console.log('[写日记] 设置内容:', d.content);
+      
+      // 设置标题和内容
+      document.getElementById('diary-write-title').value = d.title || '';
+      document.getElementById('diary-write-content').value = d.content || '';
+      document.getElementById('diary-write-title-label').textContent = '编辑日记';
+      
+      // 渲染心情选择器（必须在设置editingDiaryMood之后）
+      var row = document.getElementById('diary-mood-row');
+      row.innerHTML = '';
+      renderMoodChips(row);
+      updateDiarySaveBtn();
+      document.getElementById('diary-write-page').classList.add('active');
+      console.log('[写日记] 编辑模式设置完成');
+      return;
+    } else {
+      console.error('[写日记] 找不到日记ID:', existingId);
+    }
+  }
+  
+  // 新建模式：清空所有字段
+  console.log('[写日记] 进入新建模式');
   editingDiaryMood = '';
   document.getElementById('diary-write-title').value = '';
   document.getElementById('diary-write-content').value = '';
-  document.getElementById('diary-write-title-label').textContent = existingId ? '编辑日记' : '写日记';
-  if (existingId) {
-    var diaries = getDiaries();
-    var d = diaries.find(function(x){ return x.id === existingId; });
-    if (d) {
-      document.getElementById('diary-write-title').value = d.title || '';
-      document.getElementById('diary-write-content').value = d.content || '';
-      editingDiaryMood = d.mood || '';
-    }
-  }
+  document.getElementById('diary-write-title-label').textContent = '写日记';
+  
   // Render mood chips
   var row = document.getElementById('diary-mood-row');
   row.innerHTML = '';
   renderMoodChips(row);
   updateDiarySaveBtn();
   document.getElementById('diary-write-page').classList.add('active');
+  console.log('[写日记] 新建模式设置完成');
 }
 function closeDiaryWrite() {
   document.getElementById('diary-write-page').classList.remove('active');
@@ -2595,12 +2628,24 @@ function saveDiary() {
   }
 }
 function editCurrentDiary() {
-  if (!currentViewingDiaryId) return;
+  console.log('[编辑日记] 开始编辑，ID:', currentViewingDiaryId);
+  if (!currentViewingDiaryId) {
+    console.error('[编辑日记] 错误：没有当前查看的日记ID');
+    return;
+  }
   var diaries = getDiaries();
+  console.log('[编辑日记] 获取到的日记列表:', diaries);
   var d = diaries.find(function(x){ return x.id === currentViewingDiaryId; });
-  if (!d || d.author !== 'user') return;
+  console.log('[编辑日记] 找到的日记:', d);
+  if (!d) {
+    console.error('[编辑日记] 错误：找不到日记');
+    return;
+  }
+  // 支持编辑用户和CHAR的日记
+  // 重要：先保存ID，因为closeDiaryDetail会清空currentViewingDiaryId
+  var diaryIdToEdit = currentViewingDiaryId;
   closeDiaryDetail();
-  openDiaryWrite(currentViewingDiaryId);
+  openDiaryWrite(diaryIdToEdit);
 }
 
 // --- Diary Detail ---
@@ -2757,10 +2802,15 @@ function handleAiDiaryResult(data) {
   if (data.error) {
     if (data.reason === 'already_wrote_today') {
       showDiaryToast('今天已经写过日记了，明天再来吧');
+    } else if (data.reason === 'ai_decided_no') {
+      showDiaryToast('TA觉得今天没什么特别想记录的');
+    } else {
+      showDiaryToast('写日记失败了，请稍后再试');
     }
     renderDiaryList();
     return;
   }
+  // 手动触发时，保存日记
   var diaries = getDiaries();
   diaries.push({
     id: genId(),
@@ -2773,6 +2823,19 @@ function handleAiDiaryResult(data) {
   });
   saveDiaries(diaries);
   renderDiaryList();
+  showDiaryToast('TA写好了！');
+}
+
+function handleAutoDiaryWritten(data) {
+  // 自动定时写入的日记，数据已经在localStorage中了，只需要刷新显示
+  if (data.charId === currentCharId) {
+    renderDiaryList();
+    // 如果在日记页面，显示一个提示
+    var diaryPage = document.getElementById('page-diary');
+    if (diaryPage && diaryPage.classList.contains('active')) {
+      showDiaryToast('TA写了一篇新日记');
+    }
+  }
 }
 
 function showDiaryToast(msg) {

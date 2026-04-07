@@ -8,6 +8,10 @@
 // ============================================================
 
 window.initEventBindingsA = async function(state, db) {
+    // 从 window 获取全局变量
+    const audioPlayer = window.audioPlayer;
+    const musicState = window.musicState;
+    
     initLanguage();
 
     // 弹窗模式的多选框 - 用于浏览器不兼容下拉框时的替代方案
@@ -1928,6 +1932,12 @@ window.initEventBindingsA = async function(state, db) {
       state.apiConfig.visionApiKey = document.getElementById('vision-api-key').value.trim();
       const visionModelInput = document.getElementById('vision-model-input').value.trim();
       state.apiConfig.visionModel = visionModelInput || document.getElementById('vision-model-select').value;
+      
+      // 情侣空间API
+      state.apiConfig.couplespaceProxyUrl = document.getElementById('couplespace-proxy-url').value.trim();
+      state.apiConfig.couplespaceApiKey = document.getElementById('couplespace-api-key').value.trim();
+      const couplespaceModelInput = document.getElementById('couplespace-model-input').value.trim();
+      state.apiConfig.couplespaceModel = couplespaceModelInput || document.getElementById('couplespace-model-select').value;
 
       const imgbbEnable = document.getElementById('imgbb-enable-switch').checked;
       const imgbbApiKey = document.getElementById('imgbb-api-key').value.trim();
@@ -2157,6 +2167,10 @@ window.initEventBindingsA = async function(state, db) {
 
     document.getElementById('fetch-vision-models-btn').addEventListener('click', () => {
       fetchModels('vision-proxy-url', 'vision-api-key', 'vision-model-select');
+    });
+    
+    document.getElementById('fetch-couplespace-models-btn').addEventListener('click', () => {
+      fetchModels('couplespace-proxy-url', 'couplespace-api-key', 'couplespace-model-select');
     });
 
     // 监听主模型下拉框变化，自动填入手写框

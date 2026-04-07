@@ -49,9 +49,31 @@ document.addEventListener('DOMContentLoaded', () => {
     quickReplies: []
   };
 
+  // 音乐播放器状态
+  let musicState = {
+    isActive: false,
+    activeChatId: null,
+    isPlaying: false,
+    playlist: [],
+    currentIndex: -1,
+    playMode: 'order',
+    totalElapsedTime: 0,
+    timerId: null,
+    parsedLyrics: [],
+    currentLyricIndex: -1,
+    // 歌单系统
+    playlists: [{ id: 'default', name: '默认', createdAt: Date.now() }],
+    activePlaylistId: 'default'
+  };
+
+  // 音频播放器元素
+  const audioPlayer = document.getElementById('audio-player');
+
   // 【新增】暴露 state 到 window，供联机功能访问
   window.state = state;
   window.billState = billState;
+  window.musicState = musicState;
+  window.audioPlayer = audioPlayer;
 
   async function loadAllDataFromDB() {
     const [
@@ -401,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (memoriesToUpdate.length > 0) {
       await db.memories.bulkPut(memoriesToUpdate);
     }
-    state.apiConfig = apiConfig || {
+    const defaultApiConfig = {
       id: 'main',
       proxyUrl: '',
       apiKey: '',
@@ -412,6 +434,12 @@ document.addEventListener('DOMContentLoaded', () => {
       backgroundProxyUrl: '',
       backgroundApiKey: '',
       backgroundModel: '',
+      visionProxyUrl: '',
+      visionApiKey: '',
+      visionModel: '',
+      couplespaceProxyUrl: '',
+      couplespaceApiKey: '',
+      couplespaceModel: '',
       minimaxGroupId: '',
       minimaxApiKey: '',
       minimaxModel: 'speech-01',
@@ -426,6 +454,12 @@ document.addEventListener('DOMContentLoaded', () => {
       githubRepo: '',
       githubToken: '',
       githubFilename: 'ephone_backup.json'
+    };
+    
+    // 合并默认配置和数据库配置，确保新增字段不会丢失
+    state.apiConfig = {
+      ...defaultApiConfig,
+      ...(apiConfig || {})
     };
     if (localStorage.getItem('imgbb-enabled') !== null) {
       state.apiConfig.imgbbEnable = localStorage.getItem('imgbb-enabled') === 'true';
