@@ -336,15 +336,6 @@
   function processPromptWithSettings(originalPrompt, chatType = 'single') {
     let processedPrompt = originalPrompt;
     
-    // 检查是否启用了自定义聊天提示词
-    if (state.globalSettings.customChatPromptEnabled) {
-      const customPrompt = getActiveChatPrompt(chatType);
-      if (customPrompt) {
-        // 使用自定义提示词完全替换原始提示词
-        processedPrompt = customPrompt;
-      }
-    }
-    
     // 仅对单聊应用多条回复设置
     if (chatType === 'single') {
       const chat = state.chats[state.activeChatId];
@@ -370,6 +361,8 @@
     
     return processedPrompt;
   }
+  
+  window.getActiveChatPrompt = getActiveChatPrompt;
 
 // ========== 提示词处理函数结束 ==========
 

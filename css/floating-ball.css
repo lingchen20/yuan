@@ -331,22 +331,6 @@
   background: var(--secondary-bg, #1c1c1e);
 }
 
-/* 遮罩层 */
-#floating-ball-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: transparent;
-  z-index: 9999;
-  display: none;
-}
-
-#floating-ball-overlay.show {
-  display: block;
-}
-
 /* 角色API配置面板 */
 .role-api-panel {
   position: fixed;

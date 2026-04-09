@@ -971,6 +971,28 @@ async function openVectorMemorySettings(chat) {
         </div>
       </div>
       <div class="vm-guide-section">
+        <h4>关于 Embedding 模型及报错解决</h4>
+        <div class="vm-guide-card">
+          <div class="vm-guide-card-title">1. 什么是 Embedding 模型？</div>
+          <p>简单来说，它就像是一个<strong>“高维翻译官”</strong>。它把人类的句子（比如“今天我很开心”）翻译成一段机器能理解的“数学坐标”（也就是向量）。</p>
+          <p>AI 通过计算两句话坐标之间的距离，就能发现“开心”和“高兴”意思一样。这就是“语义检索”，让 AI 像真人一样精准联想和回忆起过去的对话。</p>
+        </div>
+        <div class="vm-guide-card">
+          <div class="vm-guide-card-title">2. 为什么显示“Embedding 失败”？</div>
+          <div class="vm-guide-list">
+            <div><span class="vm-guide-label">代理不支持</span>很多中转 API 只开放了对话接口，没有开放向量化接口（embeddings）。即使你填了 Key，代理商也会拦截请求。</div>
+            <div><span class="vm-guide-label">模型填错</span>对话模型（如 gpt-4o）和 Embedding 模型完全不同！OpenAI 常用的应该是 <code>text-embedding-3-small</code>。</div>
+            <div><span class="vm-guide-label">地址格式错</span>API 地址通常<strong>只需要填到域名</strong>（如 <code>https://api.openai.com</code> 或代理地址），系统会自动加后缀。自己多加后缀会导致乱码报错。</div>
+          </div>
+        </div>
+        <div class="vm-guide-card">
+          <div class="vm-guide-card-title">3. 去哪里获取及如何配置？</div>
+          <p>如果现有 API 无法使用，推荐以下获取渠道（很多提供免费兼容接口）：</p>
+          <p>• <strong>硅基流动 (SiliconFlow)</strong>：注册送额度，提供多款免费高质量模型。<br>• <strong>智谱 AI (BigModel)</strong>：提供 embedding-3 等，送免费额度。<br>• <strong>百川智能 / 零一万物</strong> 等提供兼容接口的平台。</p>
+          <p class="vm-guide-tip"><strong>配置步骤：</strong>勾选「使用自定义 Embedding 端点」→ 填写服务商的基础地址（如 <code>https://api.siliconflow.cn</code>）→ 填写对应的 API Key → 填写服务商文档给出的模型名称（如 <code>BAAI/bge-m3</code>）。配置后尝试添加记忆，如果不报错就说明成功了！</p>
+        </div>
+      </div>
+      <div class="vm-guide-section">
         <h4>双通道检索</h4>
         <p>系统同时用两种方式搜索记忆：</p>
         <div class="vm-guide-card">
@@ -1235,6 +1257,13 @@ async function executeVectorExtraction(chat, messages, updateTimestamp = false) 
     }
   } else {
     showToast('未提取到新的记忆', 'info');
+    // 修复BUG：即便是没有提取到新记忆，如果需要更新时间戳，也要强制更新，避免陷入死循环
+    if (updateTimestamp) {
+      const vm = window.vectorMemoryManager.getVectorMemory(chat);
+      vm.lastExtractionTimestamp = messages[messages.length - 1].timestamp;
+      await db.chats.put(chat);
+      console.log('[向量记忆] 虽未提取到新记忆，但已更新时间戳以避免重复处理');
+    }
   }
 }
 
@@ -1694,6 +1723,92 @@ async function handleManualSummary() {
         showToast('结构化记忆已同步更新', 'success');
       }
     }
+  }
+}
+
+// ==================== 向量记忆 - 长期记忆转换 ====================
+async function convertLongTermMemoryToVector(chatId) {
+  const chat = state.chats[chatId];
+  if (!chat || !window.vectorMemoryManager || !chat.longTermMemory || chat.longTermMemory.length === 0) {
+    showToast('没有可转换的长期记忆', 'warning');
+    return;
+  }
+
+  const totalMemories = chat.longTermMemory.length;
+  
+  let shouldProceed = true;
+  if (totalMemories > 50) {
+    const message = `检测到长期记忆：\n\n- 记忆数量：${totalMemories} 条\n- 将逐条调用模型生成向量，预计需要一定时间和额度\n\n继续转换？`;
+    shouldProceed = await showCustomConfirm('向量记忆转换', message);
+  }
+
+  if (!shouldProceed) {
+    showToast('已取消转换', 'info');
+    return;
+  }
+
+  const useSecondaryApi = state.apiConfig.secondaryProxyUrl && state.apiConfig.secondaryApiKey && state.apiConfig.secondaryModel;
+  const { proxyUrl, apiKey, model } = useSecondaryApi
+    ? { proxyUrl: state.apiConfig.secondaryProxyUrl, apiKey: state.apiConfig.secondaryApiKey, model: state.apiConfig.secondaryModel }
+    : state.apiConfig;
+
+  if (!proxyUrl || !apiKey || !model) {
+    showToast('API未配置，无法转换', 'error');
+    return;
+  }
+
+  let progressToast = showToast(`转换中... 0/${totalMemories}`, 'info', 0);
+  let successCount = 0;
+  let failCount = 0;
+
+  try {
+    for (let i = 0; i < chat.longTermMemory.length; i++) {
+      const mem = chat.longTermMemory[i];
+      try {
+        const embedding = await window.vectorMemoryManager.getEmbedding(mem.content, chat);
+        if (embedding) {
+          window.vectorMemoryManager.createFragment(chat, {
+            content: mem.content,
+            tags: ['旧日记转换'],
+            category: 'E',
+            importance: 5,
+            emotionalWeight: 3,
+            embedding,
+            source: 'manual'
+          });
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (err) {
+        console.error(`转换第 ${i+1} 条记忆失败:`, err);
+        failCount++;
+      }
+      
+      const toastElement = document.querySelector('.toast:last-child');
+      if (toastElement) {
+        toastElement.textContent = `转换中... ${i+1}/${totalMemories} (成功: ${successCount}, 失败: ${failCount})`;
+      }
+      
+      // 批次间稍微延迟避免限流
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // 保存结果
+    await db.chats.put(chat);
+    
+    if (progressToast) {
+      document.querySelectorAll('.toast').forEach(el => el.remove());
+    }
+    showToast(`转换完成！\n- 成功：${successCount} 条\n- 失败：${failCount} 条`, 'success', 5000);
+    
+    if (document.getElementById('vector-memory-container')?.style.display !== 'none') {
+      renderVectorMemoryView();
+    }
+  } catch (error) {
+    if (progressToast) document.querySelectorAll('.toast').forEach(el => el.remove());
+    console.error('向量记忆转换出错:', error);
+    showToast(`转换中断：${error.message}\n已成功转换 ${successCount} 条`, 'error', 5000);
   }
 }
 
@@ -2412,6 +2527,7 @@ async function executeManualSummary() {
 window.openManualSummaryModal = openManualSummaryModal;
 window.closeManualSummaryModal = closeManualSummaryModal;
 window.executeManualSummary = executeManualSummary;
+window.convertLongTermMemoryToVector = convertLongTermMemoryToVector;
 
 async function checkAndTriggerAutoSummary(chatId) {
   const chat = state.chats[chatId];

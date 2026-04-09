@@ -31,7 +31,6 @@
   let ballEl = null;
   let menuEl = null;
   let submenuEl = null;
-  let overlayEl = null;
 
   // 初始化
   function initFloatingBall() {
@@ -124,11 +123,6 @@
     }
     
     document.body.appendChild(ballEl);
-
-    // 遮罩层
-    overlayEl = document.createElement('div');
-    overlayEl.id = 'floating-ball-overlay';
-    document.body.appendChild(overlayEl);
 
     // 菜单
     menuEl = document.createElement('div');
@@ -300,11 +294,31 @@
       handleMenuAction(action);
     });
 
-    // 遮罩层点击
-    overlayEl.addEventListener('click', () => {
+    // 全局点击事件，用于点击外部收起菜单
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick, { passive: true });
+  }
+
+  function handleOutsideClick(e) {
+    if (!floatingBallState.menuOpen && !floatingBallState.submenuOpen) return;
+    
+    // 检查点击区域是否在相关元素内
+    if (ballEl && ballEl.contains(e.target)) return;
+    if (menuEl && menuEl.contains(e.target)) return;
+    if (submenuEl && submenuEl.contains(e.target)) return;
+    
+    // 如果有各种配置面板（如样式面板等），不处理
+    if (e.target.closest('.role-api-panel') || e.target.closest('.fb-style-panel')) return;
+    
+    // 如果点击了外部，完全关闭
+    if (floatingBallState.submenuOpen) {
+      floatingBallState.submenuOpen = false;
+      submenuEl.classList.remove('show');
+    }
+    
+    if (floatingBallState.menuOpen) {
       closeMenu();
-      closeSubmenu();
-    });
+    }
   }
 
   // 显示悬浮球
@@ -346,7 +360,6 @@
     ballEl.remove();
     menuEl.remove();
     submenuEl.remove();
-    overlayEl.remove();
     saveState();
     disableTripleTap();
     
@@ -421,14 +434,12 @@
     menuEl.style.left = left + 'px';
     menuEl.style.top = top + 'px';
     menuEl.classList.add('show');
-    overlayEl.classList.add('show');
   }
 
   // 关闭菜单
   function closeMenu() {
     floatingBallState.menuOpen = false;
     menuEl.classList.remove('show');
-    overlayEl.classList.remove('show');
   }
 
   // 打开子菜单

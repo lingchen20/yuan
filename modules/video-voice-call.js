@@ -382,8 +382,8 @@
         const worldBook = state.worldBooks.find(wb => wb.id === bookId);
         return worldBook && worldBook.content ? `\n\n## 世界书: ${worldBook.name}\n${worldBook.content}` : '';
       }).filter(Boolean).join('');
-      if (linkedContents) {
-        worldBookContent = `# --- 世界书 (World Book) ---
+        if (linkedContents) {
+          worldBookContent = `# --- 世界书 (World Book) ---
 # 【最高优先级指令：绝对真理】
 # 以下内容是你所在世界的"物理法则"和"基础常识"。
 # 无论用户是否提及，你都【必须】时刻主动应用这些设定来指导你的思考和描写。
@@ -391,11 +391,18 @@
 ${linkedContents}
 # --- 世界书设定结束 ---
 `;
+        }
       }
+    let longTermMemoryContent = '';
+    const memMode = chat.settings?.memoryMode || (chat.settings?.enableStructuredMemory ? 'structured' : 'diary');
+    if (memMode === 'vector' && window.vectorMemoryManager) {
+      longTermMemoryContent = window.vectorMemoryManager.serializeCoreMemories(chat);
+    } else if (memMode === 'structured' && window.structuredMemoryManager) {
+      longTermMemoryContent = window.structuredMemoryManager.serializeForPrompt(chat);
+    } else if (chat.longTermMemory && chat.longTermMemory.length > 0) {
+      longTermMemoryContent = chat.longTermMemory.map(mem => `- (记录于 ${formatTimeAgo(mem.timestamp)}) ${mem.content}`).join('\n');
     }
-    const longTermMemoryContext = chat.longTermMemory && chat.longTermMemory.length > 0 ?
-      `\n# 长期记忆 (必须参考)\n` + chat.longTermMemory.map(mem => `- (记录于 ${formatTimeAgo(mem.timestamp)}) ${mem.content}`).join('\n') :
-      '';
+    const longTermMemoryContext = longTermMemoryContent ? `\n# 长期记忆 (必须参考)\n${longTermMemoryContent}` : '';
 
     if (userInput && videoCallState.isUserParticipating) {
       const userTimestamp = Date.now();
@@ -956,8 +963,8 @@ ${linkedContents}
         const worldBook = state.worldBooks.find(wb => wb.id === bookId);
         return worldBook && worldBook.content ? `\n\n## 世界书: ${worldBook.name}\n${worldBook.content}` : '';
       }).filter(Boolean).join('');
-      if (linkedContents) {
-        worldBookContent = `# --- 世界书 (World Book) ---
+        if (linkedContents) {
+          worldBookContent = `# --- 世界书 (World Book) ---
 # 【最高优先级指令：绝对真理】
 # 以下内容是你所在世界的"物理法则"和"基础常识"。
 # 无论用户是否提及，你都【必须】时刻主动应用这些设定来指导你的思考和描写。
@@ -967,9 +974,16 @@ ${linkedContents}
 `;
       }
     }
-    const longTermMemoryContext = chat.longTermMemory && chat.longTermMemory.length > 0 ?
-      `\n# 长期记忆 (必须参考)\n` + chat.longTermMemory.map(mem => `- (记录于 ${formatTimeAgo(mem.timestamp)}) ${mem.content}`).join('\n') :
-      '';
+    let longTermMemoryContent = '';
+    const memMode = chat.settings?.memoryMode || (chat.settings?.enableStructuredMemory ? 'structured' : 'diary');
+    if (memMode === 'vector' && window.vectorMemoryManager) {
+      longTermMemoryContent = window.vectorMemoryManager.serializeCoreMemories(chat);
+    } else if (memMode === 'structured' && window.structuredMemoryManager) {
+      longTermMemoryContent = window.structuredMemoryManager.serializeForPrompt(chat);
+    } else if (chat.longTermMemory && chat.longTermMemory.length > 0) {
+      longTermMemoryContent = chat.longTermMemory.map(mem => `- (记录于 ${formatTimeAgo(mem.timestamp)}) ${mem.content}`).join('\n');
+    }
+    const longTermMemoryContext = longTermMemoryContent ? `\n# 长期记忆 (必须参考)\n${longTermMemoryContent}` : '';
 
     if (userInput && voiceCallState.isUserParticipating) {
       const userTimestamp = Date.now();

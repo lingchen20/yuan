@@ -1176,6 +1176,16 @@ window.initEventBindingsA = async function(state, db) {
             showToast('正在转换长期记忆...', 'info');
             await convertLongTermMemoryToStructured(state.activeChatId);
           }
+        } else if (mode === 'vector' && chat.longTermMemory && chat.longTermMemory.length > 0 && window.vectorMemoryManager) {
+          const confirmed = await showCustomConfirm(
+            '转换长期记忆',
+            `检测到你有 ${chat.longTermMemory.length} 条长期记忆（日记模式）。是否将它们自动转换为向量记忆（逐条生成片段）？\n\n注意：这会调用 embedding 模型消耗一定额度。`,
+            { confirmButtonText: '立即转换', cancelButtonText: '暂不转换' }
+          );
+          if (confirmed) {
+            showToast('正在转换长期记忆...', 'info');
+            await convertLongTermMemoryToVector(state.activeChatId);
+          }
         }
       });
     });
@@ -2794,6 +2804,58 @@ window.initEventBindingsA = async function(state, db) {
         const timestamp = parseInt(bubble.dataset.timestamp);
         if (!isNaN(timestamp)) {
           showTransferActionModal(timestamp);
+        }
+      }
+
+      // 1. 处理情侣空间邀请卡片点击
+      const pendingInviteCard = e.target.closest('.couple-invite-card[data-pending-invite="true"]');
+      if (pendingInviteCard) {
+        const targetTimestamp = parseInt(pendingInviteCard.dataset.timestamp);
+        const chat = state.chats[state.activeChatId];
+        
+        if (chat && targetTimestamp) {
+          const originalMsg = chat.history.find(m => m.timestamp === targetTimestamp);
+          if (originalMsg && originalMsg.status === 'pending') {
+            const action = await showChoiceModal('处理情侣空间邀请', [
+              { text: '接受', value: 'accept' },
+              { text: '拒绝', value: 'reject' }
+            ]);
+
+            if (action) {
+              originalMsg.status = action === 'accept' ? 'accepted' : 'rejected';
+              
+              // 构造用户发送的同意/拒绝消息卡片
+              const responseMsg = {
+                role: 'user',
+                type: 'couple_invite_response',
+                decision: action,
+                timestamp: Date.now()
+              };
+              chat.history.push(responseMsg);
+              
+              const myNickname = chat.settings.myNickname || '我';
+              const charName = chat.name || '';
+              
+              // 构造隐藏系统消息
+              const sysMsg = {
+                role: 'system',
+                content: action === 'accept' 
+                  ? `[系统提示："${myNickname}"同意了"${charName}"的情侣空间邀请，情侣空间已开启。]` 
+                  : `[系统提示："${myNickname}"拒绝了"${charName}"的情侣空间邀请。]`,
+                isHidden: true,
+                timestamp: Date.now() + 1
+              };
+              chat.history.push(sysMsg);
+              
+              if (action === 'accept') {
+                 if(typeof confirmCoupleSpace === 'function') confirmCoupleSpace(chat.id);
+              }
+              
+              db.chats.put(chat);
+              renderChatInterface(chat.id);
+              triggerAiResponse();
+            }
+          }
         }
       }
     });

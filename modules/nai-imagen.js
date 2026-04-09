@@ -1216,6 +1216,7 @@
 
   // ========== 全局暴露 ==========
   window.handleNaiPresetChange = handleNaiPresetChange;
+  window.handleSaveNaiPreset = handleSaveNaiPreset;
   window.saveNaiBinding = saveNaiBinding;
   window.loadNovelAISettings = loadNovelAISettings;
   window.saveNovelAISettings = saveNovelAISettings;

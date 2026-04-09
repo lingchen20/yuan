@@ -3535,8 +3535,16 @@ ${recentHistoryWithUser}
     const recentHistoryWithUser = filteredHistory.map(msg => `${msg.role === 'user' ? userDisplayNameForAI : chat.name}: ${String(msg.content).substring(0, 30)}...`).join('\n');
 
     // 3. 准备世界书
-    const longTermMemoryContext = chat.longTermMemory && chat.longTermMemory.length > 0 ?
-      chat.longTermMemory.map(mem => `- ${mem.content}`).join('\n') : '无';
+    let longTermMemoryContext = '';
+    const memMode = chat.settings?.memoryMode || (chat.settings?.enableStructuredMemory ? 'structured' : 'diary');
+    if (memMode === 'vector' && window.vectorMemoryManager) {
+      longTermMemoryContext = await window.vectorMemoryManager.serializeCoreMemories(chat) || '无';
+    } else if (memMode === 'structured' && window.structuredMemoryManager) {
+      longTermMemoryContext = window.structuredMemoryManager.serializeForPrompt(chat) || '无';
+    } else {
+      longTermMemoryContext = chat.longTermMemory && chat.longTermMemory.length > 0 ?
+        chat.longTermMemory.map(mem => `- ${mem.content}`).join('\n') : '无';
+    }
 
     const worldBookContext = (chat.settings.linkedWorldBookIds || [])
       .map(bookId => state.worldBooks.find(wb => wb.id === bookId))
@@ -5413,7 +5421,15 @@ ${recentHistory}
     const recentHistory_RAW = chat.history.slice(-maxMemory);
     const filteredHistory = await filterHistoryWithDoNotSendRules(recentHistory_RAW, activeCharacterId);
     const recentHistoryWithUser = filteredHistory.map(msg => `${msg.role === 'user' ? userDisplayNameForAI : chat.name}: ${String(msg.content).substring(0, 30)}...`).join('\n');
-    const longTermMemoryContext = chat.longTermMemory && chat.longTermMemory.length > 0 ? chat.longTermMemory.map(mem => `- ${mem.content}`).join('\n') : '无';
+    let longTermMemoryContext = '';
+    const memMode = chat.settings?.memoryMode || (chat.settings?.enableStructuredMemory ? 'structured' : 'diary');
+    if (memMode === 'vector' && window.vectorMemoryManager) {
+      longTermMemoryContext = await window.vectorMemoryManager.serializeCoreMemories(chat) || '无';
+    } else if (memMode === 'structured' && window.structuredMemoryManager) {
+      longTermMemoryContext = window.structuredMemoryManager.serializeForPrompt(chat) || '无';
+    } else {
+      longTermMemoryContext = chat.longTermMemory && chat.longTermMemory.length > 0 ? chat.longTermMemory.map(mem => `- ${mem.content}`).join('\n') : '无';
+    }
     const worldBookContext = (chat.settings.linkedWorldBookIds || []).map(bookId => state.worldBooks.find(wb => wb.id === bookId)).filter(Boolean).map(book => `\n## 世界书《${book.name}》:\n${book.content.filter(e => e.enabled).map(e => `- ${e.content}`).join('\n')}`).join('');
     const systemPrompt = `
 # 你的任务

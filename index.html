@@ -1789,6 +1789,35 @@
             </div>
         </div>
 
+        <!-- 参数设置 -->
+        <div class="settings-header">参数设置</div>
+        <div class="settings-section">
+             <div class="settings-item">
+                <label>温度 (Temperature) <span id="api-temperature-value" style="color:var(--accent-color);">0.8</span></label>
+                <div class="settings-right" style="width: 50%;">
+                    <input type="range" id="api-temperature-slider" min="0" max="2" step="0.1" value="0.8">
+                </div>
+            </div>
+             <div class="settings-item">
+                <label>核采样 (Top P) <span id="api-top-p-value" style="color:var(--accent-color);">1.0</span></label>
+                <div class="settings-right" style="width: 50%;">
+                    <input type="range" id="api-top-p-slider" min="0" max="1" step="0.05" value="1.0">
+                </div>
+            </div>
+             <div class="settings-item">
+                <label>话题新鲜度 (Presence Penalty) <span id="api-presence-penalty-value" style="color:var(--accent-color);">0.0</span></label>
+                <div class="settings-right" style="width: 50%;">
+                    <input type="range" id="api-presence-penalty-slider" min="-2" max="2" step="0.1" value="0.0">
+                </div>
+            </div>
+             <div class="settings-item">
+                <label>重复惩罚 (Frequency Penalty) <span id="api-frequency-penalty-value" style="color:var(--accent-color);">0.0</span></label>
+                <div class="settings-right" style="width: 50%;">
+                    <input type="range" id="api-frequency-penalty-slider" min="-2" max="2" step="0.1" value="0.0">
+                </div>
+            </div>
+        </div>
+
         <!-- 副 API 设置 -->
         <div class="settings-header" data-lang-key="apiSecondarySettings">副 API (长记忆总结)</div>
         <div class="settings-section">
@@ -1923,17 +1952,6 @@
                 <div class="settings-right">
                     <select id="couplespace-model-select" class="settings-select" style="flex-grow: 1; width: auto;"></select>
                     <button id="fetch-couplespace-models-btn" class="settings-mini-btn">拉取</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 参数设置 -->
-        <div class="settings-header">参数设置</div>
-        <div class="settings-section">
-             <div class="settings-item">
-                <label>温度 (Temperature) <span id="api-temperature-value" style="color:var(--accent-color);">0.8</span></label>
-                <div class="settings-right" style="width: 50%;">
-                    <input type="range" id="api-temperature-slider" min="0" max="2" step="0.1" value="0.8">
                 </div>
             </div>
         </div>
@@ -2661,7 +2679,7 @@
         </div>
 
         <!-- 系统级通知 -->
-        <div class="settings-header">系统级通知 <span style="font-size: 12px; color: #999; margin-left: 10px;">v2.1.6</span></div>
+        <div class="settings-header">系统级通知 <span style="font-size: 12px; color: #999; margin-left: 10px;">v2.1.7</span></div>
         <div class="settings-section">
             <!-- 1. 主开关 -->
             <div class="settings-item">
@@ -8404,41 +8422,3 @@
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

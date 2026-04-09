@@ -2489,10 +2489,9 @@
       const folderPath = `backups/${dateStr}`;
 
       // 核心设置
-      const RAW_SIZE_LIMIT = 1.5 * 1024 * 1024; // 1.5MB per slice (压缩前，更保守)
-      const COMPRESSED_SIZE_LIMIT = 95 * 1024 * 1024; // 95MB (GitHub Blob 限制 100MB，留余量)
+      const CHUNK_CHAR_LIMIT = 4 * 1024 * 1024; // 4MB 字符限制，分片更小以保证成功率
       const DB_BATCH_SIZE = 50;
-      const MAX_CONCURRENT_UPLOADS = 6;
+      const MAX_CONCURRENT_UPLOADS = 4;
 
       // GitHub API 基础 URL (支持代理)
       const getApiUrl = (path) => {
@@ -2577,42 +2576,29 @@
       const blobEntries = []; // { path, sha }
       const errors = [];
       const activeUploads = new Set();
-      let currentSliceIndex = 1;
-      let currentSliceData = {};
-      let currentSliceRawSize = 0;
+      let partIndex = 1;
+      let textBuffer = "";
       let totalCompressedSize = 0;
 
-      // --- 上传单个分片为 Blob ---
-      const uploadSliceAsBlob = async (partIndex, dataSnapshot) => {
+      // --- 字符串强制切片上传 (彻底解决单条大记录超限问题) ---
+      const uploadChunk = async (chunkStr, pIndex) => {
         const fileContentObj = {
-          version: 5,
+          version: 6,
           timestamp: Date.now(),
-          type: 'slice_compressed',
+          type: 'text_stream_slice',
           compression: 'gzip',
-          part: partIndex,
-          data: dataSnapshot
+          part: pIndex,
+          data: chunkStr
         };
 
         const jsonString = JSON.stringify(fileContentObj);
         const rawSizeMB = (jsonString.length / 1024 / 1024).toFixed(2);
 
-        // 压缩
+        // 压缩与编码
         const contentBase64 = compressAndEncode(jsonString);
-        const compressedSize = contentBase64.length * 0.75; // Base64 解码后的实际大小
+        const compressedSize = contentBase64.length * 0.75;
         const compressedSizeMB = (compressedSize / 1024 / 1024).toFixed(2);
         totalCompressedSize += compressedSize;
-
-        // 🔥 关键修复：检查压缩后大小是否超过 GitHub 限制
-        if (compressedSize > COMPRESSED_SIZE_LIMIT) {
-          const compressionRatio = ((compressedSize / jsonString.length) * 100).toFixed(1);
-          throw new Error(
-            `分片 #${partIndex} 压缩后仍超过 GitHub 限制！\n` +
-            `原始: ${rawSizeMB}MB → 压缩后: ${compressedSizeMB}MB (${compressionRatio}%)\n` +
-            `限制: ${(COMPRESSED_SIZE_LIMIT / 1024 / 1024).toFixed(0)}MB\n` +
-            `建议：数据包含大量图片或二进制内容，压缩效果差。\n` +
-            `请尝试：1) 清理聊天中的大图片 2) 使用"高级导出"分批备份`
-          );
-        }
 
         if (!isSilent) {
           const modalBody = document.getElementById('custom-modal-body');
@@ -2622,91 +2608,106 @@
               <p style="text-align:center;">
                 正在压缩上传中...<br>
                 队列: <b>${activeUploads.size + 1}</b> / ${MAX_CONCURRENT_UPLOADS}<br>
-                分片 #${partIndex}: ${rawSizeMB} MB → ${compressedSizeMB} MB (压缩率 ${compressionRatio}%)
+                文本分片 #${pIndex}: ${rawSizeMB} MB → ${compressedSizeMB} MB (压缩率 ${compressionRatio}%)
               </p>`;
           }
         } else {
-          const compressionRatio = ((compressedSize / jsonString.length) * 100).toFixed(1);
-          console.log(`[大数据备份] 分片 #${partIndex}: ${rawSizeMB}MB → ${compressedSizeMB}MB (${compressionRatio}%)`);
+          console.log(`[大数据备份] 分片 #${pIndex}: ${rawSizeMB}MB → ${compressedSizeMB}MB`);
         }
 
-        // 创建 Blob
-        const partFilename = `${baseFilename}_part${partIndex}.json.gz`;
+        const partFilename = `${baseFilename}_part${pIndex}.json.gz`;
         const sha = await createBlob(contentBase64);
 
         blobEntries.push({
           path: `${folderPath}/${partFilename}`,
           sha: sha
         });
-
-        console.log(`✅ [大数据备份] 分片 #${partIndex} Blob 已创建 (SHA: ${sha.substring(0, 7)})`);
+        console.log(`✅ [大数据备份] 分片 #${pIndex} Blob 已创建`);
       };
 
-      // --- 3. 流式遍历数据库 ---
+      const writeToStream = async (str) => {
+        textBuffer += str;
+        while (textBuffer.length > CHUNK_CHAR_LIMIT) {
+          if (errors.length > 0) throw new Error(errors[0]);
+          if (activeUploads.size >= MAX_CONCURRENT_UPLOADS) {
+            await Promise.race(activeUploads);
+          }
+          const chunk = textBuffer.slice(0, CHUNK_CHAR_LIMIT);
+          textBuffer = textBuffer.slice(CHUNK_CHAR_LIMIT);
+          
+          const curIndex = partIndex++;
+          const task = uploadChunk(chunk, curIndex).catch(err => {
+            console.error(err);
+            errors.push(err.message);
+          });
+          activeUploads.add(task);
+          task.finally(() => activeUploads.delete(task));
+        }
+      };
+
+      // --- 3. 流式生成完整 JSON 并自动分片 ---
+      await writeToStream('{\n"version": 3,\n"timestamp": ' + Date.now() + ',\n"data": {\n');
       const tablesToBackup = db.tables.map(t => t.name);
 
-      for (const tableName of tablesToBackup) {
+      for (let i = 0; i < tablesToBackup.length; i++) {
+        const tableName = tablesToBackup[i];
+        await writeToStream(`"${tableName}": [\n`);
+        
+        let isFirstRecord = true;
         const totalCount = await db.table(tableName).count();
-        if (totalCount === 0) continue;
-
-        let offset = 0;
-
-        while (offset < totalCount) {
-          const batch = await db.table(tableName).offset(offset).limit(DB_BATCH_SIZE).toArray();
-
-          for (const record of batch) {
-            const recordStr = JSON.stringify(record);
-            const recordSize = recordStr.length + tableName.length + 5;
-
-            if (currentSliceRawSize + recordSize > RAW_SIZE_LIMIT) {
-              const dataSnapshot = currentSliceData;
-              const indexSnapshot = currentSliceIndex;
-
-              const taskPromise = uploadSliceAsBlob(indexSnapshot, dataSnapshot).catch(err => {
-                console.error(err);
-                errors.push(err.message);
-              });
-
-              activeUploads.add(taskPromise);
-              taskPromise.finally(() => activeUploads.delete(taskPromise));
-
-              if (activeUploads.size >= MAX_CONCURRENT_UPLOADS) {
-                await Promise.race(activeUploads);
+        
+        if (totalCount > 0) {
+          let offset = 0;
+          while (offset < totalCount) {
+            const batch = await db.table(tableName).offset(offset).limit(DB_BATCH_SIZE).toArray();
+            for (const record of batch) {
+              if (!isFirstRecord) {
+                await writeToStream(',\n');
               }
-
-              if (errors.length > 0) break;
-
-              currentSliceData = {};
-              currentSliceRawSize = 0;
-              currentSliceIndex++;
+              let recordToWrite = record;
+              if (tableName === 'chats' && record.apiHistory) {
+                recordToWrite = { ...record };
+                delete recordToWrite.apiHistory;
+              }
+              await writeToStream(JSON.stringify(recordToWrite));
+              isFirstRecord = false;
             }
-
-            if (!currentSliceData[tableName]) {
-              currentSliceData[tableName] = [];
-            }
-            currentSliceData[tableName].push(record);
-            currentSliceRawSize += recordSize;
+            offset += DB_BATCH_SIZE;
+            if (errors.length > 0) break;
           }
-
-          if (errors.length > 0) break;
-          offset += DB_BATCH_SIZE;
+        }
+        await writeToStream('\n]');
+        if (i < tablesToBackup.length - 1) {
+          await writeToStream(',\n');
         }
         if (errors.length > 0) break;
       }
 
-      // --- 4. 处理最后一个分片 ---
-      if (currentSliceRawSize > 0 && errors.length === 0) {
-        const taskPromise = uploadSliceAsBlob(currentSliceIndex, currentSliceData).catch(err => {
+      if (errors.length === 0) {
+        const coupleSpaceLocalStorage = exportCoupleSpaceLocalStorage();
+        await writeToStream(',\n"localStorage": ');
+        await writeToStream(JSON.stringify(coupleSpaceLocalStorage));
+        await writeToStream('\n}\n}');
+      }
+
+      // --- 4. 处理残余内容 ---
+      if (textBuffer.length > 0 && errors.length === 0) {
+        if (activeUploads.size >= MAX_CONCURRENT_UPLOADS) {
+          await Promise.race(activeUploads);
+        }
+        const task = uploadChunk(textBuffer, partIndex++).catch(err => {
           errors.push(err.message);
         });
-        activeUploads.add(taskPromise);
+        activeUploads.add(task);
+        task.finally(() => activeUploads.delete(task));
+        textBuffer = "";
       }
 
       // --- 5. 等待所有 Blob 上传完成 ---
       if (!isSilent) {
         const modalBody = document.getElementById('custom-modal-body');
         if (modalBody) modalBody.innerHTML = `<div class="spinner" style="margin: 20px auto;"></div>
-          <p style="text-align:center;">正在等待最后 ${activeUploads.size} 个分片完成...</p>`;
+          <p style="text-align:center;">正在等待最后分片完成...</p>`;
       }
 
       await Promise.all(activeUploads);
@@ -2957,10 +2958,59 @@
       };
       if (targetSet.type === 'multipart') {
         targetSet.parts.sort((a, b) => a.num - b.num);
+        let isTextStreamMode = false;
+        let fullTextBuffer = "";
+
         for (let i = 0; i < targetSet.parts.length; i++) {
           modalBody.innerHTML = `<div class="spinner"></div><p style="text-align:center;">正在处理分片 ${i + 1}/${targetSet.parts.length}...</p>`;
-          await processFile(targetSet.parts[i].path);
+          
+          let url = `https://api.github.com/repos/${username}/${repo}/contents/${targetSet.parts[i].path}`;
+          if (state.apiConfig.githubProxyEnable && state.apiConfig.githubProxyUrl) {
+            const relativePath = url.replace("https://api.github.com", "");
+            url = state.apiConfig.githubProxyUrl.replace(/\/$/, '') + relativePath;
+          }
+          const res = await fetch(url, { headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3.raw' } });
+          if (!res.ok) throw new Error(`下载失败: ${res.status}`);
+          
+          let json;
+          const isGzipped = targetSet.parts[i].path.endsWith('.gz');
+          if (isGzipped && typeof pako !== 'undefined') {
+            const arrayBuffer = await res.arrayBuffer();
+            const decompressed = pako.ungzip(new Uint8Array(arrayBuffer), { to: 'string' });
+            json = JSON.parse(decompressed);
+          } else {
+            const text = await res.text();
+            try { json = JSON.parse(text); } catch (e) {
+              const decoded = decodeURIComponent(escape(window.atob(text.replace(/\s/g, ''))));
+              json = JSON.parse(decoded);
+            }
+          }
+
+          if (json.type === 'text_stream_slice') {
+            isTextStreamMode = true;
+            fullTextBuffer += json.data;
+          } else {
+            const dataPart = json.data || json;
+            for (const tableName of Object.keys(dataPart)) {
+              const records = dataPart[tableName];
+              if (Array.isArray(records) && records.length > 0) await db.table(tableName).bulkPut(records);
+            }
+          }
           await new Promise(r => setTimeout(r, 50));
+        }
+
+        if (isTextStreamMode) {
+          modalBody.innerHTML = `<div class="spinner"></div><p style="text-align:center;">正在解析合并后的数据，请稍候...</p>`;
+          await new Promise(r => setTimeout(r, 100)); // 让UI刷新
+          
+          const parsed = JSON.parse(fullTextBuffer);
+          fullTextBuffer = ""; // 释放内存
+          
+          const dataPart = parsed.data || parsed;
+          for (const tableName of Object.keys(dataPart)) {
+            const records = dataPart[tableName];
+            if (Array.isArray(records) && records.length > 0) await db.table(tableName).bulkPut(records);
+          }
         }
       } else {
         await processFile(targetSet.path);

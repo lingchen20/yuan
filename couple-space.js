@@ -144,7 +144,10 @@ function showCoupleSpaceSelect(mode) {
         item.innerHTML = `
           <img src="${chat.settings.aiAvatar || defaultAvatar}" class="avatar">
           <span class="name">${chat.name}</span>
-          <span style="margin-left:auto;font-size:12px;color:#999;">已绑定</span>`;
+          <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
+            <span style="font-size:12px;color:#999;">已绑定</span>
+            <button style="font-size:12px;padding:2px 8px;border-radius:4px;background:#ff4d4f;color:white;border:none;cursor:pointer;" onclick="event.stopPropagation(); unbindCoupleSpace('${sp.charId}');">解除</button>
+          </div>`;
         item.addEventListener('click', () => enterCoupleSpace(sp.charId));
         container.appendChild(item);
       });
@@ -232,6 +235,59 @@ function confirmCoupleSpace(charId) {
     createdAt: Date.now()
   });
   saveCoupleSpaces(spaces);
+}
+
+async function unbindCoupleSpace(charId) {
+  if (!confirm('确定要解除与该角色的情侣空间绑定吗？解除后可以重新绑定。')) {
+    return;
+  }
+
+  const clearData = confirm('是否同时清除与该角色的所有情侣空间数据（日记、相册、纪念日等）？\n注意：清除后无法恢复！如果不清除，重新绑定后数据将恢复。');
+  if (clearData) {
+    const keysToRemove = [
+      'coupleDiaries_' + charId, 'coupleDiarySettings_' + charId, 'coupleDiaryAutoLast_' + charId,
+      'coupleAlbum_' + charId, 'coupleAlbumSettings_' + charId, 'coupleAlbumAutoLast_' + charId,
+      'coupleAnniv_' + charId, 'coupleAnnivSettings_' + charId,
+      'coupleChecklist_' + charId, 'coupleChecklistSettings_' + charId, 'coupleChecklistAutoLast_' + charId,
+      'coupleMessages_' + charId, 'coupleMessageSettings_' + charId, 'coupleMessageAutoLast_' + charId,
+      'coupleMoods_' + charId, 'coupleMoodSettings_' + charId, 'coupleMoodAutoLast_' + charId,
+      'coupleTimeline_' + charId, 'coupleTimelineSettings_' + charId, 'coupleTimelineAutoLast_' + charId,
+      'coupleLetters_' + charId, 'coupleLetterSettings_' + charId, 'coupleLetterAutoLast_' + charId,
+      'coupleGarden_' + charId, 'coupleGardenSettings_' + charId, 'coupleGardenAutoLast_' + charId,
+      'coupleLocations_' + charId, 'coupleLocSettings_' + charId, 'coupleLocAutoLast_' + charId,
+      'coupleSleep_' + charId, 'coupleSleepSettings_' + charId, 'coupleSleepAuto_sleep_' + charId, 'coupleSleepAuto_wake_' + charId,
+      'coupleFinance_' + charId, 'coupleFinanceSettings_' + charId, 'coupleFinanceAutoLast_' + charId, 'coupleCustomFinCats_' + charId
+    ];
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  }
+  
+  const spaces = getCoupleSpaces();
+  const newSpaces = spaces.filter(s => s.charId !== charId);
+  saveCoupleSpaces(newSpaces);
+  
+  if (localStorage.getItem('coupleSpaceLastId') === charId) {
+    localStorage.removeItem('coupleSpaceLastId');
+  }
+  
+  // 检查是否开启了基本感知
+  const chat = state.chats[charId];
+  if (chat && chat.settings.enableCoupleSpacePrompt) {
+    const myNickname = chat.settings.myNickname || '我';
+    const charName = chat.name || '';
+    const unbindMsg = {
+      role: 'system',
+      type: 'system_notification',
+      content: `[系统提示："${myNickname}"刚刚解除了与"${charName}"的情侣空间绑定。]`,
+      isHidden: true,
+      timestamp: Date.now()
+    };
+    chat.history.push(unbindMsg);
+    if (typeof db !== 'undefined' && db.chats) {
+      await db.chats.put(chat);
+    }
+  }
+  
+  showCoupleSpaceSelect('list');
 }
 
 function enterCoupleSpace(charId) {

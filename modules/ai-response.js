@@ -527,16 +527,31 @@ ${linkedContents}
       const includeUserMemoryIds = chat.settings.spectatorIncludeUserMemoryForMemberIds;
       const allowMemberMemory = (member) => !includeUserMemoryIds || includeUserMemoryIds.includes(member.id);
 
-      chat.members.forEach(member => {
-        if (!allowMemberMemory(member)) return;
-        const memberChat = state.chats[member.id];
-        if (memberChat && memberChat.longTermMemory && memberChat.longTermMemory.length > 0) {
-          longTermMemoryContext += `\n## --- 关于"${member.groupNickname}"的记忆 ---\n`;
+      // 构建用于向量检索的查询词（如果有）
+      const queryTextForVector = filteredHistory.slice(-5).map(m => typeof m.content === 'string' ? m.content : '').join(' ');
 
-          longTermMemoryContext += memberChat.longTermMemory.map(mem => `- (记录于 ${formatTimeAgo(mem.timestamp)}) ${mem.content}`).join('\n');
-          collectedMemories = true;
+      for (const member of chat.members) {
+        if (!allowMemberMemory(member)) continue;
+        const memberChat = state.chats[member.id];
+        if (memberChat) {
+          const memMode = memberChat.settings?.memoryMode || (memberChat.settings?.enableStructuredMemory ? 'structured' : 'diary');
+          let memberMemContent = '';
+          
+          if (memMode === 'vector' && window.vectorMemoryManager) {
+            memberMemContent = await window.vectorMemoryManager.serializeForPrompt(memberChat, queryTextForVector);
+          } else if (memMode === 'structured' && window.structuredMemoryManager) {
+            memberMemContent = window.structuredMemoryManager.serializeForPrompt(memberChat);
+          } else if (memberChat.longTermMemory && memberChat.longTermMemory.length > 0) {
+            memberMemContent = memberChat.longTermMemory.map(mem => `- (记录于 ${formatTimeAgo(mem.timestamp)}) ${mem.content}`).join('\n');
+          }
+
+          if (memberMemContent && memberMemContent.trim() !== '') {
+            longTermMemoryContext += `\n## --- 关于"${member.groupNickname}"的记忆 ---\n`;
+            longTermMemoryContext += memberMemContent;
+            collectedMemories = true;
+          }
         }
-      });
+      }
 
       if (!collectedMemories) {
         longTermMemoryContext += '- (暂无)';
@@ -591,6 +606,14 @@ ${stickerContext}
 `;
 
       // 应用提示词设置
+      let _customTemplateSpectator = window.getActiveChatPrompt ? window.getActiveChatPrompt('spectator') : null;
+      if (_customTemplateSpectator) {
+          try {
+              systemPrompt = eval('`' + _customTemplateSpectator.replace(/`/g, '\\`') + '`');
+          } catch (e) {
+              console.error("自定义提示词(spectator)求值失败:", e);
+          }
+      }
       systemPrompt = processPromptWithSettings(systemPrompt, 'spectator');
 
       const messagesPayload = filteredHistory.map(msg => ({
@@ -1553,15 +1576,30 @@ ${linkedContents}
         let longTermMemoryContext = '# 长期记忆 (最高优先级，这是群内已经确立的事实，所有角色必须严格遵守)\n';
         let collectedMemories = false;
 
-        chat.members.forEach(member => {
-          const memberChat = state.chats[member.id];
-          if (memberChat && memberChat.longTermMemory && memberChat.longTermMemory.length > 0) {
-            longTermMemoryContext += `\n## --- 关于“${member.groupNickname}”的记忆 ---\n`;
+        // 构建用于向量检索的查询词（如果有）
+        const queryTextForVector = filteredHistory.slice(-5).map(m => typeof m.content === 'string' ? m.content : '').join(' ');
 
-            longTermMemoryContext += memberChat.longTermMemory.map(mem => `- (记录于 ${formatTimeAgo(mem.timestamp)}) ${mem.content}`).join('\n');
-            collectedMemories = true;
+        for (const member of chat.members) {
+          const memberChat = state.chats[member.id];
+          if (memberChat) {
+            const memMode = memberChat.settings?.memoryMode || (memberChat.settings?.enableStructuredMemory ? 'structured' : 'diary');
+            let memberMemContent = '';
+            
+            if (memMode === 'vector' && window.vectorMemoryManager) {
+              memberMemContent = await window.vectorMemoryManager.serializeForPrompt(memberChat, queryTextForVector);
+            } else if (memMode === 'structured' && window.structuredMemoryManager) {
+              memberMemContent = window.structuredMemoryManager.serializeForPrompt(memberChat);
+            } else if (memberChat.longTermMemory && memberChat.longTermMemory.length > 0) {
+              memberMemContent = memberChat.longTermMemory.map(mem => `- (记录于 ${formatTimeAgo(mem.timestamp)}) ${mem.content}`).join('\n');
+            }
+
+            if (memberMemContent && memberMemContent.trim() !== '') {
+              longTermMemoryContext += `\n## --- 关于“${member.groupNickname}”的记忆 ---\n`;
+              longTermMemoryContext += memberMemContent;
+              collectedMemories = true;
+            }
           }
-        });
+        }
 
         if (!collectedMemories) {
           longTermMemoryContext += '- (暂无)';
@@ -1805,7 +1843,12 @@ ${membersWithContacts}
 ${worldBookContent}
 # 长期记忆 (所有角色必须严格遵守)
 ${longTermMemoryContext}
-${chat.longTermMemory && chat.longTermMemory.length > 0 ? chat.longTermMemory.map(mem => `- ${mem.content}`).join('\n') : '- (暂无)'}
+${(() => {
+  const memMode = chat.settings?.memoryMode || (chat.settings?.enableStructuredMemory ? 'structured' : 'diary');
+  if (memMode === 'vector') return '(群聊自身的向量记忆 - 由检索引擎动态注入)';
+  if (memMode === 'structured' && window.structuredMemoryManager) return window.structuredMemoryManager.serializeForPrompt(chat);
+  return chat.longTermMemory && chat.longTermMemory.length > 0 ? chat.longTermMemory.map(mem => `- ${mem.content}`).join('\n') : '- (暂无)';
+})()}
 ${multiLayeredSummaryContext_group}
 ${linkedMemoryContext}
 ${musicContext}
@@ -1890,6 +1933,14 @@ ${localStorage.getItem('google-imagen-enabled') === 'true' ? `-   **Google Image
 现在，请根据以上规则和下方的对话历史，继续这场群聊。`;
 
         // 应用提示词设置
+        let _customTemplateGroup = window.getActiveChatPrompt ? window.getActiveChatPrompt('group') : null;
+        if (_customTemplateGroup) {
+            try {
+                systemPrompt = eval('`' + _customTemplateGroup.replace(/`/g, '\\`') + '`');
+            } catch (e) {
+                console.error("自定义提示词(group)求值失败:", e);
+            }
+        }
         systemPrompt = processPromptWithSettings(systemPrompt, 'group');
 
         messagesPayload = filteredHistory.map(msg => {
@@ -2240,6 +2291,14 @@ ${formatRules}
 现在，请根据以上所有规则和对话历史，继续这场线下互动。
 `;
           // 应用提示词设置
+          let _customTemplateOffline = window.getActiveChatPrompt ? window.getActiveChatPrompt('offline') : null;
+          if (_customTemplateOffline) {
+              try {
+                  systemPrompt = eval('`' + _customTemplateOffline.replace(/`/g, '\\`') + '`');
+              } catch (e) {
+                  console.error("自定义提示词(offline)求值失败:", e);
+              }
+          }
           systemPrompt = processPromptWithSettings(systemPrompt, 'offline');
           
           messagesPayload = filteredHistory.map(msg => {
@@ -2822,6 +2881,14 @@ ${getActiveThoughtsPrompt()}
               coupleSpaceContext += `你的回复JSON数组中【必须】包含一个决策对象：\n`;
               coupleSpaceContext += `- 接受：\`{"type": "couple_invite_decision", "decision": "accept"}\`\n`;
               coupleSpaceContext += `- 拒绝：\`{"type": "couple_invite_decision", "decision": "reject"}\`\n`;
+            } else if (!hasCoupleSpace) {
+              coupleSpaceContext += `\n## 主动发送情侣空间邀请\n`;
+              coupleSpaceContext += `如果你们的关系足够亲密，你觉得是时候了，你可以主动向对方发送情侣空间邀请。\n`;
+              coupleSpaceContext += `- **发起情侣空间邀请**: \`{"type": "couple_invite_request"}\`\n`;
+            } else if (hasCoupleSpace) {
+              coupleSpaceContext += `\n## 解除情侣空间绑定\n`;
+              coupleSpaceContext += `如果你们的关系彻底破裂（例如严重的吵架、分手等），你可以主动解除与对方的情侣空间绑定。\n`;
+              coupleSpaceContext += `- **解除情侣空间绑定**: \`{"type": "couple_space_unbind"}\`\n`;
             }
           }
 
@@ -3121,6 +3188,14 @@ ${chat.settings.myAvatarLibrary && chat.settings.myAvatarLibrary.length > 0 ? ch
 `;
 
           // 应用提示词设置
+          let _customTemplateSingle = window.getActiveChatPrompt ? window.getActiveChatPrompt('single') : null;
+          if (_customTemplateSingle) {
+              try {
+                  systemPrompt = eval('`' + _customTemplateSingle.replace(/`/g, '\\`') + '`');
+              } catch (e) {
+                  console.error("自定义提示词(single)求值失败:", e);
+              }
+          }
           systemPrompt = processPromptWithSettings(systemPrompt, 'single');
 
           messagesPayload = filteredHistory.map(msg => {
@@ -3929,6 +4004,69 @@ ${chat.settings.myAvatarLibrary && chat.settings.myAvatarLibrary.length > 0 ? ch
               await db.chats.put(chat);
               renderChatInterface(chatId);
             }
+            break;
+          }
+          case 'couple_invite_request': {
+            if (!chat.settings.enableCoupleSpacePrompt) break;
+            
+            const coupleSpaces = getCoupleSpaces();
+            const hasCoupleSpace = coupleSpaces.find(s => s.charId === chatId);
+            const pendingInvite = chat.history.findLast(m => m.type === 'couple_invite' && m.status === 'pending');
+            
+            if (!hasCoupleSpace && !pendingInvite) {
+              const inviteMsg = {
+                role: 'assistant',
+                type: 'couple_invite',
+                status: 'pending',
+                senderName: chat.originalName || chat.name,
+                timestamp: messageTimestamp++
+              };
+              chat.history.push(inviteMsg);
+              
+              if (isViewingThisChat) {
+                appendMessage(inviteMsg, chat);
+              }
+            }
+            aiMessage = null;
+            break;
+          }
+          case 'couple_space_unbind': {
+            if (!chat.settings.enableCoupleSpacePrompt) break;
+            
+            const coupleSpaces = getCoupleSpaces();
+            const hasCoupleSpace = coupleSpaces.find(s => s.charId === chatId);
+            
+            if (hasCoupleSpace) {
+              const newSpaces = coupleSpaces.filter(s => s.charId !== chatId);
+              saveCoupleSpaces(newSpaces);
+              
+              if (localStorage.getItem('coupleSpaceLastId') === chatId) {
+                localStorage.removeItem('coupleSpaceLastId');
+              }
+              
+              const myNickname = chat.settings.myNickname || '我';
+              
+              const unbindMsg = {
+                role: 'system',
+                type: 'system_notification',
+                content: `[系统提示："${chat.originalName || chat.name}"主动解除了与"${myNickname}"的情侣空间绑定。]`,
+                timestamp: messageTimestamp++
+              };
+              chat.history.push(unbindMsg);
+              
+              if (isViewingThisChat) {
+                appendMessage(unbindMsg, chat);
+              }
+              
+              // 关闭情侣空间UI（如果处于打开状态）
+              try {
+                if (document.getElementById('couple-space-screen') && document.getElementById('couple-space-screen').classList.contains('active')) {
+                  showCoupleSpaceSelect('list');
+                }
+              } catch(e) {}
+            }
+            
+            aiMessage = null;
             break;
           }
           case 'couple_invite_decision': {
@@ -6451,6 +6589,14 @@ ${chat.settings.myPersona}
 
 现在，请根据以上规则和下面的对话历史，继续进行对话。`;
 
+      let _customTemplatePropel = window.getActiveChatPrompt ? window.getActiveChatPrompt('single') : null;
+      if (_customTemplatePropel) {
+          try {
+              systemPrompt = eval('`' + _customTemplatePropel.replace(/`/g, '\\`') + '`');
+          } catch (e) {
+              console.error("自定义提示词(propel/single)求值失败:", e);
+          }
+      }
       systemPrompt = processPromptWithSettings(systemPrompt, 'single');
 
       const messagesForApi = historySlice.map(msg => ({

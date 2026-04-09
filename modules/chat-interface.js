@@ -1080,8 +1080,12 @@
             statusKey = 'rejected';
           }
         }
+        const isPendingAiInvite = (!isResponse && msg.status === 'pending' && !isUser);
+        const actionAttrs = isPendingAiInvite ? ` data-pending-invite="true" data-timestamp="${msg.timestamp}" style="cursor: pointer;"` : '';
+        const tapHint = isPendingAiInvite ? '<div class="couple-invite-hint" style="font-size: 11px; color: var(--theme-color, #ff4d4f); text-align: center; margin-top: 8px; font-weight: 500;">点击处理邀请</div>' : '';
+
         contentHtml = `
-          <div class="couple-invite-card" data-status="${statusKey}">
+          <div class="couple-invite-card" data-status="${statusKey}"${actionAttrs}>
             <div class="couple-invite-header">
               <div class="couple-invite-title">情侣空间邀请</div>
             </div>
@@ -1091,6 +1095,7 @@
             <div class="couple-invite-status" data-status="${statusKey}">
               ${statusText}
             </div>
+            ${tapHint}
           </div>
         `;
       }

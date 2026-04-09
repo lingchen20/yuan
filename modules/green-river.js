@@ -869,9 +869,15 @@
         } else {
           const chat = state.chats[id];
           if (chat) {
-            const memories = (chat.longTermMemory || [])
-              .map(m => `  * ${m.content}`)
-              .join('\n');
+            let memories = '';
+            const memMode = chat.settings?.memoryMode || (chat.settings?.enableStructuredMemory ? 'structured' : 'diary');
+            if (memMode === 'vector' && window.vectorMemoryManager) {
+              memories = window.vectorMemoryManager.serializeCoreMemories(chat) || '';
+            } else if (memMode === 'structured' && window.structuredMemoryManager) {
+              memories = window.structuredMemoryManager.serializeForPrompt(chat) || '';
+            } else {
+              memories = (chat.longTermMemory || []).map(m => `  * ${m.content}`).join('\n');
+            }
 
             const history = chat.history.slice(-historyLimit).map(m => {
               if (m.role === 'system' || m.type === 'red_packet' || m.type === 'waimai_request' || m.type === 'transfer') return null;

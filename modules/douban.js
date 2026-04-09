@@ -165,10 +165,18 @@
       '(未设置)';
 
     let charactersContext = '';
-    activeCharacterIds.forEach(charId => {
+    for (const charId of activeCharacterIds) {
       const c = state.chats[charId];
       if (c) {
-        const longTermMemory = c.longTermMemory && c.longTermMemory.length > 0 ? c.longTermMemory.map(m => m.content).join('; ') : '无';
+        let longTermMemory = '';
+        const memMode = c.settings?.memoryMode || (c.settings?.enableStructuredMemory ? 'structured' : 'diary');
+        if (memMode === 'vector' && window.vectorMemoryManager) {
+          longTermMemory = window.vectorMemoryManager.serializeCoreMemories(c) || '无';
+        } else if (memMode === 'structured' && window.structuredMemoryManager) {
+          longTermMemory = window.structuredMemoryManager.serializeForPrompt(c) || '无';
+        } else {
+          longTermMemory = c.longTermMemory && c.longTermMemory.length > 0 ? c.longTermMemory.map(m => m.content).join('; ') : '无';
+        }
         const recentHistory = c.history.slice(-10).map(msg =>
           `${msg.role === 'user' ? userNickname : c.name}: ${String(msg.content).substring(0, 30)}...`
         ).join('\n');
@@ -182,7 +190,7 @@
 </character>
 `;
       }
-    });
+    }
     npcCharacters.forEach(npc => {
       charactersContext += `
 <character>
@@ -550,14 +558,22 @@ ${charactersContext}
 
       let charactersContext = '';
       const activeCharacterIds = state.globalSettings.doubanActiveCharacterIds || [];
-      activeCharacterIds.forEach(charId => {
+      for (const charId of activeCharacterIds) {
         const c = state.chats[charId];
         if (c) {
-          const longTermMemory = c.longTermMemory && c.longTermMemory.length > 0 ? c.longTermMemory.map(m => m.content).join('; ') : '无';
+          let longTermMemory = '';
+          const memMode = c.settings?.memoryMode || (c.settings?.enableStructuredMemory ? 'structured' : 'diary');
+          if (memMode === 'vector' && window.vectorMemoryManager) {
+            longTermMemory = window.vectorMemoryManager.serializeCoreMemories(c) || '无';
+          } else if (memMode === 'structured' && window.structuredMemoryManager) {
+            longTermMemory = window.structuredMemoryManager.serializeForPrompt(c) || '无';
+          } else {
+            longTermMemory = c.longTermMemory && c.longTermMemory.length > 0 ? c.longTermMemory.map(m => m.content).join('; ') : '无';
+          }
           const recentHistory = c.history.slice(-10).map(msg => `${msg.role === 'user' ? userNickname : c.name}: ${String(msg.content).substring(0, 30)}...`).join('\n');
           charactersContext += `\n- ${c.name}: ${c.settings.aiPersona.substring(0, 50)}... [记忆: ${longTermMemory}] [最近对话: ${recentHistory}]`;
         }
-      });
+      }
       npcCharacters.forEach(npc => {
         charactersContext += `\n- ${npc.name}: ${npc.persona}`;
       });
