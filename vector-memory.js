@@ -708,8 +708,13 @@ ${formattedHistory}
             <label class="toggle-switch"><input type="checkbox" id="vm-custom-embedding" ${s.useCustomEmbedding ? 'checked' : ''}><span class="slider"></span></label>
           </div>
           <div id="vm-custom-embedding-fields" style="display:${s.useCustomEmbedding ? 'block' : 'none'}; margin-top:8px;">
-            <input type="text" id="vm-embedding-endpoint" value="${s.embeddingEndpoint || ''}" placeholder="https://api.openai.com" class="vm-input-full">
-            <input type="text" id="vm-embedding-model" value="${s.embeddingModel || 'text-embedding-3-small'}" placeholder="Model Name" class="vm-input-full" style="margin-top:4px;">
+            <input type="text" id="vm-embedding-endpoint" value="${s.embeddingEndpoint || ''}" placeholder="https://api.openai.com (如需拉取模型请确保地址以/v1结尾)" class="vm-input-full">
+            <input type="password" id="vm-embedding-apikey" value="${s.embeddingApiKey || ''}" placeholder="API Key (留空则使用主设置的Key)" class="vm-input-full" style="margin-top:4px;">
+            <div style="display:flex; gap:8px; margin-top:4px; position:relative;">
+              <input type="text" id="vm-embedding-model" value="${s.embeddingModel || 'text-embedding-3-small'}" placeholder="Model Name" class="vm-input-full" style="flex:1;">
+              <button id="vm-fetch-models-btn" class="vm-btn-secondary" style="white-space:nowrap; padding:0 12px;">拉取模型</button>
+            </div>
+            <div id="vm-models-list" style="display:none; max-height:200px; overflow-y:auto; background:var(--bg-color,#fff); border:1px solid var(--border-color,#eee); border-radius:8px; margin-top:4px; box-shadow:0 4px 12px rgba(0,0,0,0.1); position:absolute; z-index:100; width:calc(100% - 30px);"></div>
           </div>
         </div>
 
@@ -731,9 +736,59 @@ ${formattedHistory}
     };
     vm.settings.useCustomEmbedding = document.getElementById('vm-custom-embedding')?.checked || false;
     vm.settings.embeddingEndpoint = document.getElementById('vm-embedding-endpoint')?.value || '';
+    vm.settings.embeddingApiKey = document.getElementById('vm-embedding-apikey')?.value || '';
     vm.settings.embeddingModel = document.getElementById('vm-embedding-model')?.value || 'text-embedding-3-small';
     
     if (vm._retrievalCache) vm._retrievalCache = { query: '', result: null, timestamp: 0, msgCount: 0 };
+  }
+
+  // ==================== 拉取可用模型 ====================
+  async fetchAvailableModels(chat) {
+    const vm = this.getVariableMemory(chat);
+    const apiConfig = window.state?.apiConfig || {};
+    
+    // 获取当前界面上的设置
+    const endpointInput = document.getElementById('vm-embedding-endpoint')?.value;
+    const apiKeyInput = document.getElementById('vm-embedding-apikey')?.value;
+    const isCustom = document.getElementById('vm-custom-embedding')?.checked;
+
+    let endpoint = endpointInput;
+    let apiKey = apiKeyInput;
+
+    if (!isCustom || !endpoint) {
+      const useSecondary = apiConfig.secondaryProxyUrl && apiConfig.secondaryApiKey;
+      endpoint = useSecondary ? apiConfig.secondaryProxyUrl : apiConfig.proxyUrl;
+      apiKey = useSecondary ? apiConfig.secondaryApiKey : apiConfig.apiKey;
+    } else {
+      if (!apiKey) apiKey = apiConfig.apiKey; // 留空则回退到主配置
+    }
+
+    if (!endpoint || !apiKey) {
+      throw new Error('未配置有效的端点或API Key');
+    }
+
+    try {
+      const url = endpoint.endsWith('/') ? endpoint + 'v1/models' : endpoint + '/v1/models';
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (!data || !data.data) throw new Error('API 返回格式异常');
+      
+      const models = data.data.map(m => m.id).sort((a, b) => {
+        // 将含有 embedding 的模型排在前面
+        const aEmb = a.toLowerCase().includes('embed') || a.toLowerCase().includes('bge');
+        const bEmb = b.toLowerCase().includes('embed') || b.toLowerCase().includes('bge');
+        if (aEmb && !bEmb) return -1;
+        if (!aEmb && bEmb) return 1;
+        return a.localeCompare(b);
+      });
+      
+      return models;
+    } catch (e) {
+      throw new Error(e.message || '网络请求失败');
+    }
   }
 
   // ==================== 便携小白教程 ====================
