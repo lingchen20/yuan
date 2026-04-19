@@ -2,7 +2,7 @@
 class UpdateNotification {
   constructor() {
     this.storageKey = 'update_notification_dismissed';
-    this.currentVersion = '0.0.30'; // 当前更新版本号
+    this.currentVersion = '0.0.31'; // 当前更新版本号
     this.countdownSeconds = 5;
     this.countdownInterval = null;
   }
@@ -22,15 +22,17 @@ class UpdateNotification {
       <div class="update-item important-note">注意：首次打开最好使用魔法</div>
       <div class="update-item tips">有任何问题请通过DC私信联系 <a href="https://discord.com/users/1353222930875551804" target="_blank" style="color: #4A9EFF;">点击前往</a>，其他渠道可能无法及时回复</div>
       <div class="update-divider">本次更新内容</div>
-      <div class="update-item">1. 新增可以影响对话质量的多个参数，可调节</div>
-      <div class="update-item">2. 新增情侣空间角色可以主动发出邀约</div>
-      <div class="update-item">3. 新增情侣空间可以解除</div>
-      <div class="update-item">4. 新增角色可以主动解除情侣空间</div>
-      <div class="update-item">5. 优化向量记忆，新增embedding模型教程</div>
-      <div class="update-item">6. 修复NAI生图保存问题</div>
-      <div class="update-item">7. 修复云备份上传大数据问题</div>
-      <div class="update-item">8. 新增长期记忆可以转换为向量，包括其他记忆转换的问题</div>
-      <div class="update-item">9. 修复聊天提示词编写后出现各种BUG</div>
+      <div class="update-item tips">提前说明变量和心声HTML灵感来源于1900老师，感谢！其实还有很多地方没做完，但是因为部分BUG比较紧急暂时先更新一下。</div>
+      <div class="update-item">1. 修复API参数问题</div>
+      <div class="update-item">2. 修复情侣空间定时问题，这次绝对可以了！！还有其他逻辑也稍微优化了一下</div>
+      <div class="update-item">3. 重写了变量记忆</div>
+      <div class="update-item">4. 修复聊天提示词更改无效的BUG，这次也能读取人设那些了！</div>
+      <div class="update-item">5. 修复不读向量记忆的BUG</div>
+      <div class="update-item">6. 新增动态年龄</div>
+      <div class="update-item">7. 新增国籍转账主动版</div>
+      <div class="update-item">8. 新增变量，可以在美化使用了。</div>
+      <div class="update-item">9. 新增自定义心声HTML和CSS</div>
+      <div class="update-item">10. 修复API美化导致的白屏问题</div>
     `;
 
     return `
@@ -38,7 +40,7 @@ class UpdateNotification {
         <div id="update-notification-modal">
           <img src="https://i.postimg.cc/hGh6rJ5r/retouch-2026013121094970.png" class="update-decoration-img">
           <div class="update-notification-header">
-            <div class="update-title">4.9更新</div>
+            <div class="update-title">4.19更新</div>
           </div>
           
           <div class="update-notification-body">

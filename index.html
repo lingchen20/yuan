@@ -1792,44 +1792,44 @@
         <!-- 参数设置 -->
         <div class="settings-header">参数设置</div>
         <div class="settings-section">
-             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <label>温度 (Temperature)</label>
-                    <button id="reset-api-temperature-btn" class="settings-mini-btn" style="padding: 2px 8px; font-size: 12px; margin: 0; min-width: auto; height: auto;">重置</button>
+             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important;">
+                    <label style="margin: 0 !important; width: auto !important; flex: 1 1 auto !important;">温度 (Temperature)</label>
+                    <button id="reset-api-temperature-btn" class="settings-mini-btn" style="padding: 2px 8px !important; font-size: 12px !important; margin: 0 !important; min-width: auto !important; height: auto !important; flex: 0 0 auto !important;">重置</button>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
-                    <input type="range" id="api-temperature-slider" min="0" max="2" step="0.1" value="0.8" style="flex-grow: 1;">
-                    <input type="number" id="api-temperature-input" class="settings-num-input" min="0" max="2" step="0.1" value="0.8" style="width: 60px; text-align: center;">
-                </div>
-            </div>
-             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <label>核采样 (Top P)</label>
-                    <button id="reset-api-top-p-btn" class="settings-mini-btn" style="padding: 2px 8px; font-size: 12px; margin: 0; min-width: auto; height: auto;">重置</button>
-                </div>
-                <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
-                    <input type="range" id="api-top-p-slider" min="0" max="1" step="0.05" value="1.0" style="flex-grow: 1;">
-                    <input type="number" id="api-top-p-input" class="settings-num-input" min="0" max="1" step="0.05" value="1.0" style="width: 60px; text-align: center;">
+                <div style="display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;">
+                    <input type="range" id="api-temperature-slider" min="0" max="2" step="0.1" value="0.8" style="flex-grow: 1 !important; width: auto !important;">
+                    <input type="number" id="api-temperature-input" class="settings-num-input" min="0" max="2" step="0.1" value="0.8" style="width: 60px !important; text-align: center !important; flex: 0 0 auto !important;">
                 </div>
             </div>
-             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <label>话题新鲜度 (Presence Penalty)</label>
-                    <button id="reset-api-presence-penalty-btn" class="settings-mini-btn" style="padding: 2px 8px; font-size: 12px; margin: 0; min-width: auto; height: auto;">重置</button>
+             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important;">
+                    <label style="margin: 0 !important; width: auto !important; flex: 1 1 auto !important;">核采样 (Top P)</label>
+                    <button id="reset-api-top-p-btn" class="settings-mini-btn" style="padding: 2px 8px !important; font-size: 12px !important; margin: 0 !important; min-width: auto !important; height: auto !important; flex: 0 0 auto !important;">重置</button>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
-                    <input type="range" id="api-presence-penalty-slider" min="-2" max="2" step="0.1" value="0.0" style="flex-grow: 1;">
-                    <input type="number" id="api-presence-penalty-input" class="settings-num-input" min="-2" max="2" step="0.1" value="0.0" style="width: 60px; text-align: center;">
+                <div style="display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;">
+                    <input type="range" id="api-top-p-slider" min="0" max="1" step="0.05" value="1.0" style="flex-grow: 1 !important; width: auto !important;">
+                    <input type="number" id="api-top-p-input" class="settings-num-input" min="0" max="1" step="0.05" value="1.0" style="width: 60px !important; text-align: center !important; flex: 0 0 auto !important;">
                 </div>
             </div>
-             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <label>重复惩罚 (Frequency Penalty)</label>
-                    <button id="reset-api-frequency-penalty-btn" class="settings-mini-btn" style="padding: 2px 8px; font-size: 12px; margin: 0; min-width: auto; height: auto;">重置</button>
+             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important;">
+                    <label style="margin: 0 !important; width: auto !important; flex: 1 1 auto !important;">话题新鲜度 (Presence Penalty)</label>
+                    <button id="reset-api-presence-penalty-btn" class="settings-mini-btn" style="padding: 2px 8px !important; font-size: 12px !important; margin: 0 !important; min-width: auto !important; height: auto !important; flex: 0 0 auto !important;">重置</button>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
-                    <input type="range" id="api-frequency-penalty-slider" min="-2" max="2" step="0.1" value="0.0" style="flex-grow: 1;">
-                    <input type="number" id="api-frequency-penalty-input" class="settings-num-input" min="-2" max="2" step="0.1" value="0.0" style="width: 60px; text-align: center;">
+                <div style="display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;">
+                    <input type="range" id="api-presence-penalty-slider" min="-2" max="2" step="0.1" value="0.0" style="flex-grow: 1 !important; width: auto !important;">
+                    <input type="number" id="api-presence-penalty-input" class="settings-num-input" min="-2" max="2" step="0.1" value="0.0" style="width: 60px !important; text-align: center !important; flex: 0 0 auto !important;">
+                </div>
+            </div>
+             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important;">
+                    <label style="margin: 0 !important; width: auto !important; flex: 1 1 auto !important;">重复惩罚 (Frequency Penalty)</label>
+                    <button id="reset-api-frequency-penalty-btn" class="settings-mini-btn" style="padding: 2px 8px !important; font-size: 12px !important; margin: 0 !important; min-width: auto !important; height: auto !important; flex: 0 0 auto !important;">重置</button>
+                </div>
+                <div style="display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;">
+                    <input type="range" id="api-frequency-penalty-slider" min="-2" max="2" step="0.1" value="0.0" style="flex-grow: 1 !important; width: auto !important;">
+                    <input type="number" id="api-frequency-penalty-input" class="settings-num-input" min="-2" max="2" step="0.1" value="0.0" style="width: 60px !important; text-align: center !important; flex: 0 0 auto !important;">
                 </div>
             </div>
         </div>
@@ -2392,6 +2392,36 @@
             <div class="settings-item custom-thoughts-setting" style="flex-direction: column; align-items: stretch;">
                 <div class="custom-thoughts-header">
                     <div class="custom-thoughts-info">
+                        <div class="custom-thoughts-title">自定义心声外观(HTML/CSS)</div>
+                        <div class="custom-thoughts-desc">完全自定义聊天侧边心声弹窗的外观，支持导出导入</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="custom-thoughts-ui-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="custom-thoughts-ui-container" class="custom-thoughts-body" style="display: none;">
+                    <div style="font-size: 12px; color: #ff9800; margin-bottom: 8px; line-height: 1.4; background: #fff3cd; padding: 8px; border-radius: 6px;">
+                        ⚠️ 警告：必须包含 <code>id="profile-heartfelt-voice"</code> 和 <code>id="profile-random-jottings"</code> 元素才能显示内容。如果需要编辑和历史记录按钮，请保留 <code>id="profile-edit-btn"</code> 和 <code>id="profile-history-icon-btn"</code>。
+                    </div>
+                    <label style="font-size: 12px; color: var(--text-secondary);">HTML 结构</label>
+                    <textarea id="custom-thoughts-html-textarea" class="custom-thoughts-textarea" style="min-height: 150px; margin-bottom: 10px;" placeholder="HTML 代码..."></textarea>
+                    
+                    <label style="font-size: 12px; color: var(--text-secondary);">CSS 样式</label>
+                    <textarea id="custom-thoughts-css-textarea" class="custom-thoughts-textarea" style="min-height: 150px;" placeholder="CSS 代码..."></textarea>
+                    
+                    <div class="custom-thoughts-actions" style="margin-top: 10px;">
+                        <button id="export-thoughts-ui-btn" class="custom-thoughts-io-btn">📤 导出</button>
+                        <button id="import-thoughts-ui-btn" class="custom-thoughts-io-btn">📥 导入</button>
+                        <input type="file" id="import-thoughts-ui-file" accept=".json,.txt" style="display:none;">
+                        <button id="reset-thoughts-ui-btn" class="custom-thoughts-reset-btn">恢复默认</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-item custom-thoughts-setting" style="flex-direction: column; align-items: stretch;">
+                <div class="custom-thoughts-header">
+                    <div class="custom-thoughts-info">
                         <div class="custom-thoughts-title">自定义结构化总结提示词</div>
                         <div class="custom-thoughts-desc">开启后可自定义结构化记忆总结时发送给AI的提示词</div>
                     </div>
@@ -2695,7 +2725,7 @@
         </div>
 
         <!-- 系统级通知 -->
-        <div class="settings-header">系统级通知 <span style="font-size: 12px; color: #999; margin-left: 10px;">v2.1.7</span></div>
+        <div class="settings-header">系统级通知 <span style="font-size: 12px; color: #999; margin-left: 10px;">v2.1.8</span></div>
         <div class="settings-section">
             <!-- 1. 主开关 -->
             <div class="settings-item">
@@ -4272,13 +4302,13 @@
                 </div>
             </div>
 
-            <div class="settings-item" id="character-country-group">
-                <div style="flex: 1; padding-right: 10px; display: flex; flex-direction: column; align-items: flex-start;">
-                    <label style="margin-bottom: 2px;">角色国籍 (默认货币)</label>
-                    <div class="settings-desc">决定角色转账和显示的默认货币</div>
+            <div class="settings-item" id="character-country-group" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 8px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; flex-direction: column !important; align-items: flex-start !important; width: 100% !important;">
+                    <label style="margin-bottom: 4px !important;">角色国籍 (默认货币)</label>
+                    <div class="settings-desc" style="margin: 0 !important; width: 100% !important;">决定角色转账和显示的默认货币</div>
                 </div>
-                <div class="settings-right">
-                    <select id="character-country-select" class="settings-select">
+                <div class="settings-right" style="width: 100% !important; margin: 0 !important; justify-content: flex-start !important;">
+                    <select id="character-country-select" class="settings-select" style="width: 100% !important; max-width: none !important;">
                         <option value="China">中国 (¥ 人民币)</option>
                         <option value="USA">美国 ($ 美元)</option>
                         <option value="Japan">日本 (¥ 日元)</option>

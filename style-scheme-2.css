@@ -3,6 +3,23 @@
    方案 2：奶油樱花·浅粉梦境 (Cream Sakura Dream)
    ========================================================================== */
 
+/* --- 0. 防止样式泄漏到其他界面 --- */
+#clean-chat-detail-screen .settings-section,
+#clean-chat-detail-screen .settings-item,
+#clean-chat-detail-screen .settings-header,
+#clean-chat-detail-screen .settings-mini-btn,
+#clean-chat-detail-screen .settings-full-btn,
+#clean-chat-detail-screen .settings-tip-wrapper,
+#clean-chat-detail-screen .settings-desc,
+#clean-chat-detail-screen .toggle-switch,
+#clean-chat-detail-screen .slider,
+#clean-chat-detail-screen input,
+#clean-chat-detail-screen select,
+#clean-chat-detail-screen button,
+#clean-chat-detail-screen label {
+    all: revert !important;
+}
+
 /* --- 1. 全局背景与字体 --- */
 #api-settings-screen.api-scheme-2 {
     background: linear-gradient(180deg, #FEFEFE 0%, #FFF8FA 50%, #FFF5F8 100%) !important;
