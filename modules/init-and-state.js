@@ -108,9 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
       enableThoughts: false,              // 新增：全局心声开关，默认关闭
       customThoughtsPromptEnabled: false,  // 自定义心声提示词开关，默认关闭
       customThoughtsPrompt: '',            // 自定义心声提示词内容，空字符串表示使用默认
-      customThoughtsUIEnabled: false,      // 自定义心声外观开关，默认关闭
-      customThoughtsHTML: '',              // 自定义心声 HTML
-      customThoughtsCSS: '',               // 自定义心声 CSS
       customSummaryPromptEnabled: false,   // 自定义结构化总结提示词开关，默认关闭
       customSummaryPrompt: '',             // 自定义结构化总结提示词内容，空字符串表示使用默认
       customChatPromptEnabled: false,      // 自定义聊天提示词开关，默认关闭

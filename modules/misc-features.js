@@ -1580,62 +1580,6 @@
 // 用户状态/心声/角色资料 (原 script.js 第 33054~33351 行)
 // ============================================================
 
-  function applyCustomThoughtsUI() {
-    const chat = state.chats[state.activeChatId];
-    if (!chat) return;
-
-    const modalContent = document.querySelector('#character-profile-modal .character-profile-content');
-    if (!modalContent) return;
-
-    const uiEnabled = state.globalSettings.customThoughtsUIEnabled;
-    let htmlContent = '';
-
-    if (uiEnabled && state.globalSettings.customThoughtsHTML) {
-      htmlContent = state.globalSettings.customThoughtsHTML;
-    } else if (typeof getDefaultThoughtsHTML === 'function') {
-      htmlContent = getDefaultThoughtsHTML();
-    }
-
-    modalContent.innerHTML = htmlContent;
-
-    // 重新绑定事件
-    const editBtn = document.getElementById('profile-edit-btn');
-    if (editBtn) editBtn.addEventListener('click', openThoughtEditor);
-
-    const historyBtn = document.getElementById('profile-history-icon-btn');
-    if (historyBtn) historyBtn.addEventListener('click', showThoughtsHistory);
-
-    const backBtn = document.getElementById('history-back-btn');
-    if (backBtn) backBtn.addEventListener('click', hideThoughtsHistory);
-
-    const thoughtsList = document.getElementById('thoughts-history-list');
-    if (thoughtsList) {
-      thoughtsList.addEventListener('click', (e) => {
-        const deleteBtn = e.target.closest('.thought-delete-btn');
-        if (deleteBtn) {
-          const timestamp = parseInt(deleteBtn.dataset.timestamp);
-          if (!isNaN(timestamp)) {
-            handleDeleteThought(timestamp);
-          }
-        }
-      });
-    }
-
-    // 注入 CSS
-    let styleEl = document.getElementById('custom-thoughts-style');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'custom-thoughts-style';
-      document.head.appendChild(styleEl);
-    }
-    if (uiEnabled && state.globalSettings.customThoughtsCSS) {
-      styleEl.textContent = state.globalSettings.customThoughtsCSS;
-    } else {
-      styleEl.textContent = '';
-    }
-  }
-  window.applyCustomThoughtsUI = applyCustomThoughtsUI;
-
   // USER状态修改弹窗 - 直接输入框
   async function showUserStatusModal(chatId) {
     const chat = state.chats[chatId];
@@ -1799,24 +1743,9 @@
 
     const modal = document.getElementById('character-profile-modal');
 
-    // 动态应用自定义外观
-    if (typeof applyCustomThoughtsUI === 'function') {
-      applyCustomThoughtsUI();
-    }
 
-    // 更新内部的特定元素，因为可能被自定义 UI 覆盖了内容，需要再次渲染内容
-    const updatedHeartfeltVoiceEl = document.getElementById('profile-heartfelt-voice');
-    const updatedRandomJottingsEl = document.getElementById('profile-random-jottings');
-    
-    if (updatedHeartfeltVoiceEl && updatedRandomJottingsEl) {
-      if (!enableThoughts) {
-        updatedHeartfeltVoiceEl.innerHTML = '<span style="color: #999;">心声功能已关闭</span>';
-        updatedRandomJottingsEl.innerHTML = '<span style="color: #999;">心声功能已关闭</span>';
-      } else {
-        updatedHeartfeltVoiceEl.innerHTML = await applyRenderingRules(chat.heartfeltVoice || '...', chatId);
-        updatedRandomJottingsEl.innerHTML = await applyRenderingRules(chat.randomJottings || '...', chatId);
-      }
-    }
+
+
 
     modal.classList.add('visible');
   }
