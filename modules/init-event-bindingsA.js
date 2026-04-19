@@ -2042,6 +2042,9 @@ window.initEventBindingsA = async function(state, db) {
 
       // 新增：保存心声和动态功能开关
       state.globalSettings.enableThoughts = document.getElementById('global-enable-thoughts-switch').checked;
+      state.globalSettings.customThoughtsUIEnabled = document.getElementById('custom-thoughts-ui-switch').checked;
+      state.globalSettings.customThoughtsHTML = document.getElementById('custom-thoughts-html-textarea').value;
+      state.globalSettings.customThoughtsCSS = document.getElementById('custom-thoughts-css-textarea').value;
       state.globalSettings.customThoughtsPromptEnabled = document.getElementById('custom-thoughts-prompt-switch').checked;
       state.globalSettings.customThoughtsPrompt = document.getElementById('custom-thoughts-prompt-textarea').value;
       state.globalSettings.customSummaryPromptEnabled = document.getElementById('custom-summary-prompt-switch').checked;
