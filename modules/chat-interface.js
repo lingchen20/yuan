@@ -691,7 +691,7 @@
 
         const imageUrl = state.globalSettings.enableAiDrawing && msg.image_prompt ?
           getPollinationsImageUrl(msg.image_prompt) :
-          'https://i.postimg.cc/KYr2qRCK/1.jpg';
+          'https://i.postimg.cc/4xsDpZBt/1768731889736.png';
 
 
         contentHtml = `<img src="${imageUrl}" class="ai-generated-image" alt="${altText}" data-description="${msg.content}">`;
@@ -700,7 +700,7 @@
         bubble.classList.add('is-realimag', 'is-card-like');
         contentHtml = `
                         <div class="nai-image-wrapper">
-                            <img src="${msg.imageUrl}" class="realimag-image" alt="NovelAI图片分享" loading="lazy" onerror="this.src='https://i.postimg.cc/KYr2qRCK/1.jpg'; this.alt='图片加载失败';" title="${msg.fullPrompt || msg.prompt || 'NovelAI生成'}">
+                            <img src="${msg.imageUrl}" class="realimag-image" alt="NovelAI图片分享" loading="lazy" onerror="this.src='https://i.postimg.cc/4xsDpZBt/1768731889736.png'; this.alt='图片加载失败';" title="${msg.fullPrompt || msg.prompt || 'NovelAI生成'}">
                             
                             <div class="bubble-image-controls"> 
                                 <button class="nai-save-local-btn" title="下载图片">
@@ -732,7 +732,7 @@
         bubble.classList.add('is-realimag', 'is-card-like');
         contentHtml = `
                         <div class="nai-image-wrapper">
-                            <img src="${msg.imageUrl}" class="realimag-image" alt="Google Imagen图片分享" loading="lazy" onerror="this.src='https://i.postimg.cc/KYr2qRCK/1.jpg'; this.alt='图片加载失败';" title="${msg.fullPrompt || msg.prompt || 'Google Imagen生成'}">
+                            <img src="${msg.imageUrl}" class="realimag-image" alt="Google Imagen图片分享" loading="lazy" onerror="this.src='https://i.postimg.cc/4xsDpZBt/1768731889736.png'; this.alt='图片加载失败';" title="${msg.fullPrompt || msg.prompt || 'Google Imagen生成'}">
                             
                             <div class="bubble-image-controls"> 
                                 <button class="nai-save-local-btn" title="下载图片">
@@ -822,33 +822,33 @@
         if (isUser) {
           if (msg.isRefund) {
             titleText = `退款给 ${receiverDisplayName}`;
-            noteText = '已拒收对方转账';
+            noteText = '已退还';
           } else if (msg.isReceived) {
             titleText = `已收款`;
-            noteText = '已存入余额';
+            noteText = '已收款';
           } else {
             titleText = `转账给 ${receiverDisplayName}`;
-            if (msg.status === 'accepted') noteText = '对方已收款';
-            else if (msg.status === 'declined') noteText = '对方已拒收';
-            else noteText = msg.note || '等待对方处理...';
+            if (msg.status === 'accepted') noteText = '已被接收';
+            else if (msg.status === 'declined') noteText = '已被退还';
+            else noteText = msg.note || '你发起了一笔转账';
           }
         } else {
           if (msg.isReceived) {
             titleText = `已收款`;
-            noteText = '已存入金库'; // 或者 '已存入余额'
+            noteText = '已收款'; // 或者 '已存入余额'
           }
           // ★★★ 新增结束 ★★★
           else if (msg.isRefund) {
             titleText = `退款来自 ${senderDisplayName}`;
-            noteText = '转账已被拒收';
+            noteText = '已退还';
           } else if (msg.receiverName === myNickname) {
             titleText = `转账给 ${myNickname}`;
-            if (msg.status === 'accepted') noteText = '你已收款';
-            else if (msg.status === 'declined') noteText = '你已拒收';
+            if (msg.status === 'accepted') noteText = '已被接收';
+            else if (msg.status === 'declined') noteText = '已被退还';
             else {
               bubble.style.cursor = 'pointer';
               bubble.dataset.status = 'pending';
-              noteText = msg.note || '点击处理';
+              noteText = msg.note || '请收款';
             }
           } else {
             titleText = `转账: ${senderDisplayName} → ${receiverDisplayName}`;
