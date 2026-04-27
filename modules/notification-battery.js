@@ -291,7 +291,7 @@
     }
 
     const appName = state.globalSettings.systemNotification.appName || 'EPhone';
-    const title = options.title || `${appName} - ${chat.name}`;
+    const title = options.title || chat.name;
     const body = messageContent;
     const icon = chat.settings.aiAvatar || chat.settings.groupAvatar || 'https://i.postimg.cc/nMbyyt1t/D7CD735A73F5FD1D7B8407E0EB8BBAC0.png';
 
@@ -1010,15 +1010,15 @@
     const level = battery.level;
     if (!battery.charging) {
       if (level <= 0.4 && lastKnownBatteryLevel > 0.4 && !alertFlags.hasShown40) {
-        showBatteryAlert('https://i.postimg.cc/T2yKJ0DV/40.jpg', '有点饿了，可以去找充电器惹');
+        showBatteryAlert('https://i.postimg.cc/RCWG2QcY/retouch-2025112703400070.png', '有点饿了，可以去找充电器惹');
         alertFlags.hasShown40 = true;
       }
       if (level <= 0.2 && lastKnownBatteryLevel > 0.2 && !alertFlags.hasShown20) {
-        showBatteryAlert('https://i.postimg.cc/qB9zbKs9/20.jpg', '赶紧的充电，要饿死了');
+        showBatteryAlert('https://i.postimg.cc/SQnVH76h/retouch-2025112703370663.png', '赶紧的充电，要饿死了');
         alertFlags.hasShown20 = true;
       }
       if (level <= 0.1 && lastKnownBatteryLevel > 0.1 && !alertFlags.hasShown10) {
-        showBatteryAlert('https://i.postimg.cc/ThMMVfW4/10.jpg', '已阵亡，还有30秒爆炸');
+        showBatteryAlert('https://i.postimg.cc/9XD1stGL/retouch-2025112703524646.png', '已阵亡，还有30秒爆炸');
         alertFlags.hasShown10 = true;
       }
     }
@@ -1038,7 +1038,7 @@
         battery.addEventListener('chargingchange', () => {
           handleBatteryChange(battery);
           if (battery.charging) {
-            showBatteryAlert('https://i.postimg.cc/3NDQ0dWG/image.jpg', '窝爱泥，电量吃饱饱');
+            showBatteryAlert('https://i.postimg.cc/mk1cVr1y/retouch-2025112703384025.png', '窝爱泥，电量吃饱饱');
           }
         });
       } catch (err) {
