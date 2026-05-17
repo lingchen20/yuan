@@ -987,7 +987,7 @@
       batteryAlertModal.removeEventListener('click', closeAlert);
     };
     batteryAlertModal.addEventListener('click', closeAlert);
-    batteryAlertTimeout = setTimeout(closeAlert, 2000);
+    batteryAlertTimeout = setTimeout(closeAlert, 4000);
   }
 
   function updateBatteryDisplay(battery) {
@@ -997,7 +997,7 @@
     const batteryTextEl = batteryContainer.querySelector('.battery-text');
     const level = Math.floor(battery.level * 100);
     batteryLevelEl.style.width = `${level}%`;
-    batteryTextEl.textContent = `${level}%`;
+    batteryTextEl.textContent = `${level}`;
     if (battery.charging) {
       batteryContainer.classList.add('charging');
     } else {
@@ -1010,15 +1010,15 @@
     const level = battery.level;
     if (!battery.charging) {
       if (level <= 0.4 && lastKnownBatteryLevel > 0.4 && !alertFlags.hasShown40) {
-        showBatteryAlert('https://i.postimg.cc/RCWG2QcY/retouch-2025112703400070.png', '有点饿了，可以去找充电器惹');
+        showBatteryAlert('https://i.postimg.cc/R0Q4TSBx/mmexport1778962596832.gif', '有点饿了，可以去找充电器惹');
         alertFlags.hasShown40 = true;
       }
       if (level <= 0.2 && lastKnownBatteryLevel > 0.2 && !alertFlags.hasShown20) {
-        showBatteryAlert('https://i.postimg.cc/SQnVH76h/retouch-2025112703370663.png', '赶紧的充电，要饿死了');
+        showBatteryAlert('https://i.postimg.cc/SR5hKjW7/mmexport1778962673107.gif');
         alertFlags.hasShown20 = true;
       }
       if (level <= 0.1 && lastKnownBatteryLevel > 0.1 && !alertFlags.hasShown10) {
-        showBatteryAlert('https://i.postimg.cc/9XD1stGL/retouch-2025112703524646.png', '已阵亡，还有30秒爆炸');
+        showBatteryAlert('https://i.postimg.cc/ZKBmMFSV/mmexport1778962810385.gif', '已阵亡，还有30秒爆炸');
         alertFlags.hasShown10 = true;
       }
     }
@@ -1038,7 +1038,7 @@
         battery.addEventListener('chargingchange', () => {
           handleBatteryChange(battery);
           if (battery.charging) {
-            showBatteryAlert('https://i.postimg.cc/mk1cVr1y/retouch-2025112703384025.png', '窝爱泥，电量吃饱饱');
+            showBatteryAlert('https://i.postimg.cc/FsdvBgv9/mmexport1778962827263.gif', '窝爱泥，电量吃饱饱');
           }
         });
       } catch (err) {
