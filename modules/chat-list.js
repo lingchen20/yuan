@@ -364,9 +364,9 @@
         return weekdays[date.getDay()];
       }
       if (now.getFullYear() === date.getFullYear()) {
-        return `${date.getMonth() + 1}/${date.getDate()}`;
+        return `${date.getMonth() + 1}月${date.getDate()}日`;
       }
-      return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
     }
 
     try {
