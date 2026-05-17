@@ -197,9 +197,9 @@
     const titleEl = document.getElementById('chat-list-title');
     if (titleEl) {
       if (totalUnread > 0) {
-        titleEl.textContent = `消息(${totalUnread})`;
+        titleEl.textContent = `微信(${totalUnread})`;
       } else {
-        titleEl.textContent = '消息';
+        titleEl.textContent = '微信';
       }
     }
 
