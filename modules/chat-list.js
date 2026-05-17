@@ -388,8 +388,7 @@
           lastMsgDisplay = '[照片]';
         } else if (lastMsgObj.type === 'voice_message') {
           lastMsgDisplay = '[语音]';
-        } else if (typeof lastMsgObj.content === 'string' && STICKER_REGEX.test(lastMsgObj.content)) {
-          lastMsgDisplay = lastMsgObj.meaning ? `[表情: ${lastMsgObj.meaning}]` : '[表情]';
+        } else if (typeof lastMsgObj.content === 'string' && STICKER_REGEX.test(lastMsgObj.content)) { lastMsgDisplay = '[动画表情]'; }
         } else if (Array.isArray(lastMsgObj.content)) {
           lastMsgDisplay = `[图片]`;
         } else {
