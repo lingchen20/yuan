@@ -1,3 +1,5 @@
+
+
 // ============================================================
 // chat-list.js
 // 聊天列表模块：showScreen、switchToChatListView、renderChatList、
@@ -185,6 +187,43 @@
       return (b.history.slice(-1)[0]?.timestamp || 0) - (a.history.slice(-1)[0]?.timestamp || 0);
     });
 
+    // --- 新增：统计总未读数，更新顶栏标题 + 左下角底部导航红点 ---
+    let totalUnread = 0;
+    allChats.forEach(chat => {
+      totalUnread += (chat.unreadCount || 0);
+    });
+    
+    // 1. 更新顶栏标题
+    const titleEl = document.getElementById('chat-list-title');
+    if (titleEl) {
+      if (totalUnread > 0) {
+        titleEl.textContent = `消息(${totalUnread})`;
+      } else {
+        titleEl.textContent = '消息';
+      }
+    }
+
+    // 2. 更新底部导航栏左下角“消息”的小红点
+    const msgNavItem = document.querySelector('.nav-item[data-view="messages-view"]');
+    if (msgNavItem) {
+      let indicator = msgNavItem.querySelector('.unread-indicator');
+      const targetSpan = msgNavItem.querySelector('span') || msgNavItem; // 找图标容器
+      
+      if (totalUnread > 0) {
+        if (!indicator) {
+          indicator = document.createElement('span');
+          indicator.className = 'unread-indicator';
+          targetSpan.style.position = 'relative'; // 确保红点能定位在图标右上角
+          targetSpan.appendChild(indicator);
+        }
+        indicator.textContent = totalUnread > 99 ? '99+' : totalUnread;
+        indicator.style.display = 'block';
+      } else {
+        if (indicator) indicator.style.display = 'none';
+      }
+    }
+    // ----------------------------------------
+
     const allGroups = await db.qzoneGroups.toArray();
 
     if (allChats.length === 0) {
@@ -363,6 +402,7 @@
         const weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
         return weekdays[date.getDay()];
       }
+      // --- 修改点：年月日中文格式 ---
       if (now.getFullYear() === date.getFullYear()) {
         return `${date.getMonth() + 1}月${date.getDate()}日`;
       }
@@ -379,16 +419,18 @@
       } else if (!chat.isGroup && chat.relationship?.status === 'blocked_by_ai') {
         lastMsgDisplay = `<span style="color: #dc3545;">[你已被对方拉黑]</span>`;
       } else {
-        // --- 修改点：不再区分单群聊在线状态，统一显示最后一条消息 ---
+        // --- 修改点：统一显示最后一条消息、动画表情写死 ---
         if (lastMsgObj.type === 'pat_message') {
           lastMsgDisplay = `[系统消息] ${lastMsgObj.content}`;
         } else if (lastMsgObj.type === 'transfer') {
           lastMsgDisplay = '[转账]';
         } else if (['ai_image', 'user_photo', 'naiimag', 'googleimag'].includes(lastMsgObj.type)) {
-          lastMsgDisplay = '[照片]';
+          lastMsgDisplay = '[图片]';
         } else if (lastMsgObj.type === 'voice_message') {
           lastMsgDisplay = '[语音]';
-        } else if (typeof lastMsgObj.content === 'string' && STICKER_REGEX.test(lastMsgObj.content)) { lastMsgDisplay = '[动画表情]'; }
+        } else if (typeof lastMsgObj.content === 'string' && STICKER_REGEX.test(lastMsgObj.content)) {
+          // 动画表情直接写死，不再判断meaning
+          lastMsgDisplay = '[动画表情]';
         } else if (Array.isArray(lastMsgObj.content)) {
           lastMsgDisplay = `[图片]`;
         } else {
@@ -561,4 +603,7 @@
   window.renderChatList = renderChatList;
   window.loadMoreChats = loadMoreChats;
   window.switchToChatListView = switchToChatListView;
+
+
+
 
