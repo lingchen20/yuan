@@ -14,25 +14,25 @@
 
 // ========== 聊天内通知 ==========
 // 原始位置：script.js 第 36475~36490 行
-query为空
-query为空
+  function playNotificationSound() {
+    const player = document.getElementById('notification-sound-player');
 
-query为空
+    const soundUrl = state.globalSettings.notificationSoundUrl || DEFAULT_NOTIFICATION_SOUND;
 
 
-query为空
-query为空
-query为空
-query为空
+    if (soundUrl && soundUrl.trim()) {
+      player.src = soundUrl;
+      // 应用音量设置
+      player.volume = state.globalSettings.notificationVolume !== undefined ? state.globalSettings.notificationVolume : 1.0;
 
-query为空
-query为空
-query为空
+      player.play().catch(error => console.log("播放被中断，这是正常行为:", error));
+    }
+  }
 
 // 原始位置：script.js 第 8891~8960 行
-query为空
-query为空
-query为空
+  function showNotification(chatId, messageContent) {
+    const chat = state.chats[chatId];
+    if (!chat) return;
 
     // 检查是否禁用内部弹窗通知
     const disableInternalNotification = state.globalSettings.systemNotification?.disableInternalNotification || false;
@@ -56,58 +56,58 @@ query为空
       bar.classList.add('visible');
 
       const newBar = bar.cloneNode(true);
-      bar.编辑通知-battery. js元.文件(展开文件树, 面包屑);
-      元.模块('click', () => {
-        在(主要的);
-        取消更改.提交更改....编辑('visible');
+      bar.parentNode.replaceChild(newBar, bar);
+      newBar.addEventListener('click', () => {
+        openChat(chatId);
+        newBar.classList.remove('visible');
       });
 
-      预演 = 缩进模式(() => {
-        空.制表符.查询为空('visible');
+      notificationTimeout = setTimeout(() => {
+        newBar.classList.remove('visible');
       }, 4000);
-      查询为空();
+      updateBackButtonUnreadCount();
     }
 
-    查询为空
-    查询为空.查询为空-查询为空. 查询为空(查询为空
-      查询为空
-      查询为空
-      /原始位置:script. js 8891~8960
-查询为空
-      查询为空
+    // 新增：触发系统级通知
+    console.log('[系统通知调试] showNotification 被调用:', {
+      chatId,
+      messageContent,
+      systemNotificationEnabled: state.globalSettings.systemNotification?.enabled,
+      disableInternalNotification: disableInternalNotification,
+      notificationPermission: typeof Notification !== 'undefined' ? Notification.permission : 'N/A'
     });
 
-    查询为空
-      // 检查是否禁用内部弹窗通知.常量(禁用内部通知);
-      状态+全局设置+系统通知(禁用内部通知, 虚假的);
-    } // 如果未禁用内部弹窗，则显示内部弹窗{
-      如果.禁用内部通知(playNotificationSound);
+    if (state.globalSettings.systemNotification?.enabled) {
+      console.log('[系统通知调试] 准备调用 handleSystemNotification');
+      handleSystemNotification(chatId, messageContent);
+    } else {
+      console.log('[系统通知调试] 系统通知未启用或配置不存在');
     }
   }
 
-  清除超时
-  ，37178
-    你
-    setTimeout（设置超时）
+  // 新增：在聊天页面也触发系统级通知（如果启用了相应选项）
+  function triggerSystemNotificationInChatPage(chatId, messageContent) {
+    // 检查是否启用了"在聊天页面也发送通知"选项
+    const notifyInChatPage = state.globalSettings.systemNotification?.notifyInChatPage || false;
 
-    /新增:you mAyoto you mAyoto&console.log[you mAyou]you mAyoto you mAyoto you mAyoto and console.log[you mAyou]you you soundUrl
-身份证聊天
-        你
-        /soundUrl~8960handleSystemNotification~36490n系统通知调试~37175nhandleSystemNotification~37448.************* =
+    if (notifyInChatPage && state.globalSettings.systemNotification?.enabled) {
+      console.log('[系统通知调试] 在聊天页面触发系统级通知:', {
+        chatId,
+        messageContent
       });
-      soundUrl
+      handleSystemNotification(chatId, messageContent);
     }
   }
 
-修剪
-英语字母表的第10个字母{{
+// ========== 系统级通知功能 ==========
+// 原始位置：script.js 第 36608~37175 行
 
-  修剪运动员源 = 日志
-  }, 4000); (你
-    handleSystemNotification聊天]
-      身份证
-///应用音量设置*****************************************************************************************************************************************************************************************************************聊天.身份证消息内容.常量*(状态, 常量聊天状态.''如果（！聊天）回来；聊天'';
-常量
+  // 初始化系统通知
+  function initSystemNotification() {
+    if (!('Notification' in window)) {
+      console.warn('此浏览器不支持系统通知');
+      return;
+    }
 
     updateNotificationPermissionStatus();
     bindSystemNotificationEvents();
