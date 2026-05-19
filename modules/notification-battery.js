@@ -987,7 +987,7 @@ query为空
       batteryAlertModal.removeEventListener('click', closeAlert);
     };
     batteryAlertModal.addEventListener('click', closeAlert);
-    batteryAlertTimeout = setTimeout(closeAlert, 2500);
+    batteryAlertTimeout = setTimeout(closeAlert, 4000);
   }
 
   function updateBatteryDisplay(battery) {
