@@ -19,7 +19,6 @@
 
     const soundUrl = state.globalSettings.notificationSoundUrl || DEFAULT_NOTIFICATION_SOUND;
 
-
     if (soundUrl && soundUrl.trim()) {
       player.src = soundUrl;
       // 应用音量设置
@@ -29,6 +28,10 @@
     }
   }
 
+  // --- 新增：微信级弹窗消息队列系统 ---
+  let notificationQueue = [];
+  let isShowingNotification = false;
+
 // 原始位置：script.js 第 8891~8960 行
   function showNotification(chatId, messageContent) {
     const chat = state.chats[chatId];
@@ -37,38 +40,13 @@
     // 检查是否禁用内部弹窗通知
     const disableInternalNotification = state.globalSettings.systemNotification?.disableInternalNotification || false;
 
-    // 如果未禁用内部弹窗，则显示内部弹窗
+    // 如果未禁用内部弹窗，把消息加入“排队列表”，解决只弹第一条的问题
     if (!disableInternalNotification) {
-      playNotificationSound();
-
-      clearTimeout(notificationTimeout);
-
-      const bar = document.getElementById('notification-bar');
-
-      document.getElementById('notification-avatar').src = chat.settings.aiAvatar || chat.settings.groupAvatar || defaultAvatar;
-      document.getElementById('notification-content').querySelector('.name').textContent = chat.name;
-      document.getElementById('notification-content').querySelector('.message').textContent = messageContent;
-
-      bar.classList.remove('visible');
-
-      void bar.offsetWidth;
-
-      bar.classList.add('visible');
-
-      const newBar = bar.cloneNode(true);
-      bar.parentNode.replaceChild(newBar, bar);
-      newBar.addEventListener('click', () => {
-        openChat(chatId);
-        newBar.classList.remove('visible');
-      });
-
-      notificationTimeout = setTimeout(() => {
-        newBar.classList.remove('visible');
-      }, 4000);
-      updateBackButtonUnreadCount();
+      notificationQueue.push({ chatId, messageContent, chat });
+      processNotificationQueue(); // 尝试开始播放排队的通知
     }
 
-    // 新增：触发系统级通知
+    // 触发系统级通知日志
     console.log('[系统通知调试] showNotification 被调用:', {
       chatId,
       messageContent,
@@ -82,6 +60,62 @@
       handleSystemNotification(chatId, messageContent);
     } else {
       console.log('[系统通知调试] 系统通知未启用或配置不存在');
+    }
+  }
+
+  // --- 新增：处理弹窗排队的专门函数 ---
+  function processNotificationQueue() {
+    // 如果当前正在显示弹窗，或者队列空了，就先等一下
+    if (isShowingNotification || notificationQueue.length === 0) return;
+    
+    isShowingNotification = true;
+    const { chatId, messageContent, chat } = notificationQueue.shift(); // 拿出排在第一位的消息
+    
+    playNotificationSound();
+    clearTimeout(notificationTimeout);
+
+    const bar = document.getElementById('notification-bar');
+
+    // 重构高仿微信的 UI，强制定时靠右，不管字数多少都不会乱
+    bar.innerHTML = `
+      <img id="notification-avatar" src="${chat.settings.aiAvatar || chat.settings.groupAvatar || defaultAvatar}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover; margin-right: 12px; flex-shrink: 0;">
+      <div id="notification-content" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+              <div class="name" style="font-weight: 600; font-size: 15px; color: #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${chat.name}</div>
+              <div class="time" style="font-size: 12px; color: #8a8a8a; flex-shrink: 0; margin-left: 10px;">现在</div>
+          </div>
+          <div class="message" style="font-size: 14px; color: #333; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4;">${messageContent}</div>
+      </div>
+    `;
+
+    // 触发显示动画
+    bar.classList.remove('visible');
+    void bar.offsetWidth; 
+    bar.classList.add('visible');
+
+    // 绑定点击跳转事件
+    bar.onclick = () => {
+      openChat(chatId);
+      bar.classList.remove('visible');
+      clearTimeout(notificationTimeout);
+      // 等待 0.3秒 弹窗收回去的动画播完，马上弹下一条
+      setTimeout(() => {
+        isShowingNotification = false;
+        processNotificationQueue();
+      }, 300);
+    };
+
+    // 自动消失并播放下一条
+    notificationTimeout = setTimeout(() => {
+      bar.classList.remove('visible');
+      setTimeout(() => {
+        isShowingNotification = false;
+        processNotificationQueue();
+      }, 300); // 留出 300ms 动画时间
+    }, 3500); // 停留3.5秒
+
+    if (typeof updateBackButtonUnreadCount === 'function') {
+      updateBackButtonUnreadCount();
     }
   }
 
@@ -987,7 +1021,7 @@
       batteryAlertModal.removeEventListener('click', closeAlert);
     };
     batteryAlertModal.addEventListener('click', closeAlert);
-    batteryAlertTimeout = setTimeout(closeAlert, 4000);
+    batteryAlertTimeout = setTimeout(closeAlert, 3000);
   }
 
   function updateBatteryDisplay(battery) {
@@ -1080,3 +1114,4 @@
     if (typeof updateBackButtonUnreadCount === 'function') updateBackButtonUnreadCount();
   }
   window.updateUnreadIndicator = updateUnreadIndicator;
+
