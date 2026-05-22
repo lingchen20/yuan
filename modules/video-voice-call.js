@@ -1,7 +1,7 @@
 // ============================================================
 // video-voice-call.js
 // 来源：script.js 第 25404 ~ 26812 行
-// 功能：视频通话 & 语音通话 & 拍一拍 & 通话消息操作 (头像手动触发 + 双击隐藏版)
+// 功能：视频通话 & 语音通话 & 拍一拍 & 通话消息操作 (手动触发 + 双击隐藏 + 智能批量重新生成版)
 // ============================================================
 
 (function () {
@@ -35,6 +35,52 @@
 
   let callTimerInterval = null;
   let voiceCallTimerInterval = null;
+
+  // ★★★ 魔改新增：智能拦截并劫持“重新生成”按键 ★★★
+  function bindRegenerateButton(btnId, isVideo) {
+    const oldBtn = document.getElementById(btnId);
+    if (!oldBtn) return;
+    // 克隆一个新按键，完美剥离原先笨笨的旧事件
+    const newBtn = oldBtn.cloneNode(true);
+    oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+    
+    // 绑上我们最新的“一键连删”魔法
+    newBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // 防止触发底层的双击隐藏等事件
+      // 增加一个按压小动画反馈
+      newBtn.style.transform = 'scale(0.85)';
+      setTimeout(() => newBtn.style.transform = '', 150);
+      handleCallRegenerate(isVideo);
+    });
+  }
+
+  // ★★★ 魔改新增：批量删除AI回复并重新生成 ★★★
+  async function handleCallRegenerate(isVideo) {
+    const callState = isVideo ? videoCallState : voiceCallState;
+    if (!callState.isActive) return;
+
+    let removedCount = 0;
+    // 从后往前扫荡：只要最后发言的是 'assistant'，统统删掉！
+    while (callState.callHistory.length > 0 && callState.callHistory[callState.callHistory.length - 1].role === 'assistant') {
+      const msg = callState.callHistory.pop();
+      // 在界面上找到那个气泡并干掉它
+      const msgBubble = document.querySelector(`.call-message-bubble[data-timestamp="${msg.timestamp}"]`);
+      if (msgBubble) {
+        msgBubble.remove();
+      }
+      removedCount++;
+    }
+
+    if (removedCount > 0) {
+      console.log(`[魔改] 成功清除了 ${removedCount} 条连续的AI回复，准备重新生成...`);
+      // 重新呼叫AI产生回复
+      if (isVideo) {
+        triggerAiInCallAction(null, true);
+      } else {
+        triggerAiInVoiceCallAction(null, true);
+      }
+    }
+  }
 
   async function handleInitiateCall() {
     if (!state.activeChatId || videoCallState.isActive || videoCallState.isAwaitingResponse) return;
@@ -90,7 +136,9 @@
     document.getElementById('video-call-main').innerHTML = `<em>${videoCallState.isGroupCall ? '群聊已建立...' : '正在接通...'}</em>`;
     showScreen('video-call-screen');
 
-    // 应用视频通话优化设置
+    // ★★★ 绑定视频通话的智能重新生成键 ★★★
+    bindRegenerateButton('regenerate-call-btn', true);
+
     if (typeof window.applyVideoOptimizationToCall === 'function') {
       window.applyVideoOptimizationToCall(chat);
     }
@@ -102,21 +150,18 @@
     callTimerInterval = setInterval(updateCallTimer, 1000);
     updateCallTimer();
 
-    // ★★★ 魔改新增：双击隐藏/显示聊天区域 ★★★
     const videoScreen = document.getElementById('video-call-screen');
     const callFeed = document.getElementById('video-call-main');
-    callFeed.style.transition = 'opacity 0.3s ease'; // 添加平滑过渡效果
+    callFeed.style.transition = 'opacity 0.3s ease'; 
     
     videoScreen.ondblclick = (e) => {
-      // 避免点到头像或底部按钮时误触发
       if (e.target.closest('.participant-avatar-wrapper') || e.target.closest('button')) return;
-      
       if (callFeed.style.opacity === '0') {
         callFeed.style.opacity = '1';
-        callFeed.style.pointerEvents = 'auto'; // 恢复点击
+        callFeed.style.pointerEvents = 'auto';
       } else {
         callFeed.style.opacity = '0';
-        callFeed.style.pointerEvents = 'none'; // 隐藏后不阻挡下方点击
+        callFeed.style.pointerEvents = 'none';
       }
     };
 
@@ -178,7 +223,6 @@
         transcript: [...videoCallState.callHistory]
       };
       await db.callRecords.add(callRecord);
-      console.log("通话记录已保存:", callRecord);
 
       let summaryMessage = {
         role: videoCallState.initiator === 'user' ? 'user' : 'assistant',
@@ -269,15 +313,14 @@
             <div class="participant-name">${displayName}</div>
         `;
       
-      // ★★★ 魔改新增：给AI头像添加点击呼叫事件 ★★★
       if (p.id !== 'user') {
         wrapper.style.cursor = 'pointer';
         wrapper.title = '点击呼叫TA回复';
-        wrapper.style.transition = 'transform 0.1s ease'; // 点击小动画
+        wrapper.style.transition = 'transform 0.1s ease';
         wrapper.onclick = () => {
-          wrapper.style.transform = 'scale(0.9)'; // 按下变小
-          setTimeout(() => wrapper.style.transform = 'none', 150); // 弹回
-          triggerAiInCallAction(null); // 触发AI生成
+          wrapper.style.transform = 'scale(0.9)'; 
+          setTimeout(() => wrapper.style.transform = 'none', 150); 
+          triggerAiInCallAction(null, true); // 手动触发生成
         };
       }
 
@@ -287,13 +330,10 @@
 
   function handleUserJoinCall() {
     if (!videoCallState.isActive || videoCallState.isUserParticipating) return;
-
     videoCallState.isUserParticipating = true;
     updateParticipantAvatars();
-
     document.getElementById('user-speak-btn').style.display = 'block';
     document.getElementById('join-call-btn').style.display = 'none';
-
     triggerAiInCallAction("[系统提示：用户加入了通话]", true);
   }
 
@@ -336,7 +376,6 @@
     document.getElementById('incoming-call-modal').classList.remove('visible');
   }
 
-  // ★★★ 修改：加了一个 autoReply 参数，拦截自动回复 ★★★
   async function triggerAiInCallAction(userInput = null, autoReply = false) {
     if (!videoCallState.isActive) return;
 
@@ -407,7 +446,7 @@ ${linkedContents}
         timestamp: userTimestamp
       });
 
-      // ★★★ 魔改核心：发送完后立刻拦截，不调用AI，除非是系统事件强行触发 ★★★
+      // 只有特定情况（如初次接通或点击头像）才触发AI，平时打字不触发
       if (!autoReply) {
         trimCallHistory(videoCallState);
         return; 
@@ -738,6 +777,9 @@ ${linkedContents}
     document.getElementById('voice-call-main').innerHTML = `<em>${voiceCallState.isGroupCall ? '群聊已建立...' : '正在接通...'}</em>`;
     showScreen('voice-call-screen');
 
+    // ★★★ 绑定语音通话的智能重新生成键 ★★★
+    bindRegenerateButton('voice-regenerate-call-btn', false);
+
     document.getElementById('voice-user-speak-btn').style.display = voiceCallState.isUserParticipating ? 'block' : 'none';
     document.getElementById('voice-join-call-btn').style.display = voiceCallState.isUserParticipating ? 'none' : 'block';
 
@@ -745,14 +787,12 @@ ${linkedContents}
     voiceCallTimerInterval = setInterval(updateVoiceCallTimer, 1000);
     updateVoiceCallTimer();
 
-    // ★★★ 魔改新增：语音界面双击隐藏/显示聊天区域 ★★★
     const voiceScreen = document.getElementById('voice-call-screen');
     const voiceFeed = document.getElementById('voice-call-main');
     voiceFeed.style.transition = 'opacity 0.3s ease'; 
     
     voiceScreen.ondblclick = (e) => {
       if (e.target.closest('.participant-avatar-wrapper') || e.target.closest('button')) return;
-      
       if (voiceFeed.style.opacity === '0') {
         voiceFeed.style.opacity = '1';
         voiceFeed.style.pointerEvents = 'auto';
@@ -821,7 +861,6 @@ ${linkedContents}
         callType: 'voice'
       };
       await db.callRecords.add(callRecord);
-      console.log("语音通话记录已保存:", callRecord);
 
       let summaryMessage = {
         role: voiceCallState.initiator === 'user' ? 'user' : 'assistant',
@@ -908,7 +947,6 @@ ${linkedContents}
         <div class="participant-name">${displayName}</div>
       `;
       
-      // ★★★ 魔改新增：给AI头像添加点击呼叫事件 ★★★
       if (p.id !== 'user') {
         wrapper.style.cursor = 'pointer';
         wrapper.title = '点击呼叫TA回复';
@@ -916,7 +954,7 @@ ${linkedContents}
         wrapper.onclick = () => {
           wrapper.style.transform = 'scale(0.9)'; 
           setTimeout(() => wrapper.style.transform = 'none', 150); 
-          triggerAiInVoiceCallAction(null); 
+          triggerAiInVoiceCallAction(null, true); 
         };
       }
 
@@ -926,13 +964,10 @@ ${linkedContents}
 
   function handleUserJoinVoiceCall() {
     if (!voiceCallState.isActive || voiceCallState.isUserParticipating) return;
-
     voiceCallState.isUserParticipating = true;
     updateVoiceParticipantAvatars();
-
     document.getElementById('voice-user-speak-btn').style.display = 'block';
     document.getElementById('voice-join-call-btn').style.display = 'none';
-
     triggerAiInVoiceCallAction("[系统提示：用户加入了通话]", true);
   }
 
@@ -944,7 +979,6 @@ ${linkedContents}
     document.getElementById('voice-call-timer').textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
 
-  // ★★★ 修改：加了一个 autoReply 参数，拦截自动回复 ★★★
   async function triggerAiInVoiceCallAction(userInput = null, autoReply = false) {
     if (!voiceCallState.isActive) return;
 
@@ -1004,7 +1038,6 @@ ${linkedContents}
         timestamp: userTimestamp
       });
 
-      // ★★★ 魔改核心：发送完后立刻拦截，不调用AI，除非是系统事件强行触发 ★★★
       if (!autoReply) {
         trimCallHistory(voiceCallState);
         return; 
