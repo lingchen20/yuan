@@ -1,7 +1,7 @@
 // ============================================================
 // video-voice-call.js
 // 来源：script.js 第 25404 ~ 26812 行
-// 功能：视频通话 & 语音通话 & 拍一拍 & 通话消息操作
+// 功能：视频通话 & 语音通话 & 拍一拍 & 通话消息操作 (含手动回复魔改版)
 // ============================================================
 
 (function () {
@@ -35,6 +35,55 @@
 
   let callTimerInterval = null;
   let voiceCallTimerInterval = null;
+
+  // ★★★ 魔改新增：动态生成手动回复的控制面板 ★★★
+  function setupManualReplyUI(screenId, isVideo) {
+    let screen = document.getElementById(screenId);
+    if (!screen) return;
+    if (!document.getElementById(screenId + '-manual-ctrl')) {
+      let ctrl = document.createElement('div');
+      ctrl.id = screenId + '-manual-ctrl';
+      ctrl.style.cssText = 'position: absolute; top: 80px; right: 15px; z-index: 1000; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; color: white; font-size: 13px; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+      ctrl.innerHTML = `
+        <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer;">
+          <input type="checkbox" id="${screenId}-manual-toggle" style="margin:0; width:16px; height:16px;">
+          等待我发完
+        </label>
+        <button id="${screenId}-manual-btn" style="display:none; padding: 6px 12px; border-radius: 6px; background: #1677ff; color: white; border: none; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(22,119,255,0.3);">呼叫AI回复</button>
+      `;
+      screen.appendChild(ctrl);
+
+      const toggle = document.getElementById(`${screenId}-manual-toggle`);
+      const btn = document.getElementById(`${screenId}-manual-btn`);
+
+      // 保持全局状态一致
+      toggle.checked = !!window.isCallManualReply;
+      btn.style.display = window.isCallManualReply ? 'block' : 'none';
+
+      toggle.addEventListener('change', (e) => {
+        window.isCallManualReply = e.target.checked;
+        btn.style.display = e.target.checked ? 'block' : 'none';
+        
+        // 如果两个界面来回切，同步勾选状态
+        const otherId = isVideo ? 'voice-call-screen' : 'video-call-screen';
+        const otherToggle = document.getElementById(`${otherId}-manual-toggle`);
+        const otherBtn = document.getElementById(`${otherId}-manual-btn`);
+        if (otherToggle) {
+            otherToggle.checked = e.target.checked;
+            if(otherBtn) otherBtn.style.display = e.target.checked ? 'block' : 'none';
+        }
+      });
+
+      // 手动触发AI回复
+      btn.addEventListener('click', () => {
+        if (isVideo) {
+          triggerAiInCallAction(null);
+        } else {
+          triggerAiInVoiceCallAction(null);
+        }
+      });
+    }
+  }
 
 
   async function handleInitiateCall() {
@@ -97,6 +146,9 @@
     document.getElementById('video-call-main').innerHTML = `<em>${videoCallState.isGroupCall ? '群聊已建立...' : '正在接通...'}</em>`;
     showScreen('video-call-screen');
 
+    // ★★★ 魔改新增：注入手动回复 UI ★★★
+    setupManualReplyUI('video-call-screen', true);
+
     // 应用视频通话优化设置
     if (typeof window.applyVideoOptimizationToCall === 'function') {
       window.applyVideoOptimizationToCall(chat);
@@ -114,25 +166,15 @@
 
   function minimizeVideoCall() {
     if (!videoCallState.isActive) return;
-
-
     document.getElementById('video-call-restore-btn').style.display = 'flex';
-
-
     showScreen('chat-interface-screen');
-
-
     console.log("视频通话已最小化。");
   }
 
 
   function restoreVideoCall() {
     if (!videoCallState.isActive) return;
-
-
     document.getElementById('video-call-restore-btn').style.display = 'none';
-
-
     showScreen('video-call-screen');
     console.log("视频通话已恢复。");
   }
@@ -192,20 +234,12 @@
       }
       chat.history.push(summaryMessage);
 
-
-
-
-
-
       const callTranscriptForAI = videoCallState.callHistory.map(h => {
         const sender = h.role === 'user' ? (chat.settings.myNickname || '我') : h.senderName;
         return `${sender}: ${h.content}`;
       }).join('\n');
 
-
-
       summarizeCallTranscript(chat.id, callTranscriptForAI);
-
 
       const hiddenReactionInstruction = {
         role: 'system',
@@ -215,10 +249,8 @@
       };
       chat.history.push(hiddenReactionInstruction);
 
-
       await db.chats.put(chat);
     }
-
 
     clearInterval(callTimerInterval);
     callTimerInterval = null;
@@ -248,9 +280,6 @@
     }
   }
 
-
-
-
   function updateParticipantAvatars() {
     const grid = document.getElementById('participant-avatars-grid');
     grid.innerHTML = '';
@@ -259,11 +288,8 @@
 
     let participantsToRender = [];
 
-
     if (videoCallState.isGroupCall) {
-
       participantsToRender = [...videoCallState.participants];
-
       if (videoCallState.isUserParticipating) {
         participantsToRender.unshift({
           id: 'user',
@@ -272,7 +298,6 @@
         });
       }
     } else {
-
       participantsToRender.push({
         id: 'ai',
         name: chat.name,
@@ -300,15 +325,11 @@
     videoCallState.isUserParticipating = true;
     updateParticipantAvatars();
 
-
     document.getElementById('user-speak-btn').style.display = 'block';
     document.getElementById('join-call-btn').style.display = 'none';
 
-
     triggerAiInCallAction("[系统提示：用户加入了通话]");
   }
-
-
 
   function updateCallTimer() {
     if (!videoCallState.isActive) return;
@@ -320,7 +341,6 @@
 
 
   function showIncomingCallModal(callType = 'video', chat = null) {
-    // 如果没有传入 chat，则从 state 中获取
     if (!chat) {
       const activeChatId = callType === 'video' ? videoCallState.activeChatId : voiceCallState.activeChatId;
       chat = state.chats[activeChatId];
@@ -342,13 +362,10 @@
       document.querySelector('.incoming-call-content .caller-text').textContent = `邀请你${callTypeText}`;
     }
 
-    // 保存通话类型到 modal 的 dataset 中，以便接听/拒绝时使用
     const modal = document.getElementById('incoming-call-modal');
     modal.dataset.callType = callType;
     modal.classList.add('visible');
   }
-
-
 
   function hideIncomingCallModal() {
     document.getElementById('incoming-call-modal').classList.remove('visible');
@@ -359,18 +376,12 @@
     if (!videoCallState.isActive) return;
 
     const chat = state.chats[videoCallState.activeChatId];
-    const {
-      proxyUrl,
-      apiKey,
-      model
-    } = state.apiConfig;
+    const { proxyUrl, apiKey, model } = state.apiConfig;
     const callFeed = document.getElementById('video-call-main');
     const userNickname = chat.settings.myNickname || '我';
 
     let worldBookContent = '';
-    // 获取所有应该使用的世界书ID（包括手动选择的和全局的）
     let allWorldBookIds = [...(chat.settings.linkedWorldBookIds || [])];
-    // 添加所有全局世界书
     state.worldBooks.forEach(wb => {
       if (wb.isGlobal && !allWorldBookIds.includes(wb.id)) {
         allWorldBookIds.push(wb.id);
@@ -414,12 +425,10 @@ ${linkedContents}
       callFeed.appendChild(userBubble);
       callFeed.scrollTop = callFeed.scrollHeight;
 
-      // 检查是否启用真实摄像头并获取截图
       let userContent = userInput;
       if (chat.videoOptimization && chat.videoOptimization.enableRealCamera) {
         const capturedImage = window.getLastCameraCapture ? window.getLastCameraCapture() : null;
         if (capturedImage) {
-          // 为支持视觉的模型构建多模态消息
           userContent = [
             { type: 'text', text: userInput },
             { type: 'image_url', image_url: { url: capturedImage } }
@@ -432,6 +441,13 @@ ${linkedContents}
         content: userContent,
         timestamp: userTimestamp
       });
+
+      // ★★★ 魔改新增：手动拦截触发 ★★★
+      // 如果你勾选了“等待我发完”，并且你刚刚发送了消息，就立刻中断，不让AI请求回复！
+      if (window.isCallManualReply) {
+        trimCallHistory(videoCallState);
+        return; 
+      }
     }
 
 
@@ -565,16 +581,13 @@ ${linkedContents}
           }
         });
       } else {
-        // 单人视频通话：支持旁白和多句对话
         const enableTts = chat.settings.enableTts !== false;
         const voiceId = chat.settings.minimaxVoiceId;
         const interleavedMode = chat.videoOptimization && chat.videoOptimization.interleavedMode;
 
-        // 尝试解析为JSON数组
         const messagesArray = parseAiResponse(aiResponse);
 
         if (interleavedMode) {
-          // 穿插模式：按原始顺序逐条渲染
           let dialogueCount = 0;
           messagesArray.forEach((msg, index) => {
             const aiTimestamp = Date.now() + index + 1;
@@ -615,7 +628,6 @@ ${linkedContents}
             }
           });
 
-          // 头像动画
           const speakingAvatar = document.querySelector(`.participant-avatar-wrapper[data-participant-id="ai"] .participant-avatar`);
           if (speakingAvatar && dialogueCount > 0) {
             speakingAvatar.classList.add('speaking');
@@ -624,7 +636,6 @@ ${linkedContents}
             setTimeout(() => speakingAvatar.classList.remove('speaking'), speakTime);
           }
         } else {
-          // 默认模式：旁白合并在前，对话在后
           const narrations = messagesArray.filter(m => m.type === 'narration');
           const dialogues = messagesArray.filter(m => m.type === 'dialogue');
 
@@ -669,7 +680,6 @@ ${linkedContents}
             }
           });
 
-          // 头像动画
           const speakingAvatar = document.querySelector(`.participant-avatar-wrapper[data-participant-id="ai"] .participant-avatar`);
           if (speakingAvatar) {
             speakingAvatar.classList.add('speaking');
@@ -694,16 +704,14 @@ ${linkedContents}
         content: `[ERROR: ${error.message}]`
       });
     }
-    // ★ 每次发送后修剪历史
     trimCallHistory(videoCallState);
   }
+
   function trimCallHistory(callState) {
     if (callState.callHistory.length > 100) {
       callState.callHistory = callState.callHistory.slice(-100);
     }
   }
-
-
 
 
   function toggleCallButtons(isGroup) {
@@ -768,6 +776,9 @@ ${linkedContents}
 
     document.getElementById('voice-call-main').innerHTML = `<em>${voiceCallState.isGroupCall ? '群聊已建立...' : '正在接通...'}</em>`;
     showScreen('voice-call-screen');
+
+    // ★★★ 魔改新增：注入语音模式的手动回复 UI ★★★
+    setupManualReplyUI('voice-call-screen', false);
 
     document.getElementById('voice-user-speak-btn').style.display = voiceCallState.isUserParticipating ? 'block' : 'none';
     document.getElementById('voice-join-call-btn').style.display = voiceCallState.isUserParticipating ? 'none' : 'block';
@@ -1003,6 +1014,13 @@ ${linkedContents}
         content: userInput,
         timestamp: userTimestamp
       });
+
+      // ★★★ 魔改新增：手动拦截触发 ★★★
+      // 如果你勾选了“等待我发完”，并且你刚刚发送了消息，立刻中断！不让AI打断你！
+      if (window.isCallManualReply) {
+        trimCallHistory(voiceCallState);
+        return; 
+      }
     }
 
     let inCallPrompt;
@@ -1142,11 +1160,9 @@ ${worldBookContent}
           }
         });
       } else {
-        // 单聊模式：支持多条消息
         const enableTts = chat.settings.enableTts !== false;
         const voiceId = chat.settings.minimaxVoiceId;
 
-        // 尝试解析为JSON数组（多条消息）
         const messagesArray = parseAiResponse(aiResponse);
 
         messagesArray.forEach((msg, index) => {
@@ -1166,7 +1182,6 @@ ${worldBookContent}
             timestamp: aiTimestamp
           });
 
-          // 为每条消息播放TTS
           if (enableTts && voiceId) {
             playVideoCallPureTTS(messageContent, voiceId);
           }
@@ -1195,14 +1210,10 @@ ${worldBookContent}
         content: `[ERROR: ${error.message}]`
       });
     }
-    // ★ 每次发送后修剪历史
     trimCallHistory(voiceCallState);
   }
 
   // ==================== 语音通话功能结束 ====================
-
-
-
 
 
   async function handleUserPat(chatId, characterOriginalName) {
@@ -1234,18 +1245,14 @@ ${worldBookContent}
 
     if (suffix === null) return;
 
-    // 获取用户昵称，如果是 {{user}} 则使用 "你"
     let myNickname = state.qzoneSettings.nickname;
     if (!myNickname || myNickname === '{{user}}') {
       myNickname = '你';
     }
 
-    // 如果是群聊，使用群昵称
     if (chat.isGroup) {
       myNickname = chat.settings.myNickname || '你';
     }
-
-
 
     const visibleMessageContent = `${myNickname} 拍了拍 "${displayNameForUI}" ${suffix.trim()}`;
     const visibleMessage = {
@@ -1273,7 +1280,6 @@ ${worldBookContent}
     await renderChatList();
   }
 
-  // 新增：处理用户拍自己的功能
   async function handleUserPatSelf(chatId) {
     const chat = state.chats[chatId];
     if (!chat) return;
@@ -1283,18 +1289,15 @@ ${worldBookContent}
     void phoneScreen.offsetWidth;
     phoneScreen.classList.add('pat-animation');
 
-    // 获取用户昵称，如果是 {{user}} 则使用 "你"
     let myNickname = state.qzoneSettings.nickname;
     if (!myNickname || myNickname === '{{user}}') {
       myNickname = '你';
     }
 
-    // 如果是群聊，使用群昵称
     if (chat.isGroup) {
       myNickname = chat.settings.myNickname || '你';
     }
 
-    // 弹出输入框让用户输入拍自己的后缀
     const suffix = await showCustomPrompt(
       `${myNickname} 拍了拍自己`,
       "输入拍一拍后缀",
@@ -1304,7 +1307,6 @@ ${worldBookContent}
 
     if (suffix === null) return;
 
-    // 创建可见的拍一拍消息
     const visibleMessageContent = `${myNickname} 拍了拍自己 ${suffix.trim()}`;
     const visibleMessage = {
       role: 'system',
@@ -1314,7 +1316,6 @@ ${worldBookContent}
     };
     chat.history.push(visibleMessage);
 
-    // 创建隐藏的系统提示，让AI知道用户拍了自己
     const hiddenMessageContent = `[系统提示：用户（${myNickname}）刚刚拍了拍自己${suffix.trim()}。你可以对此作出回应或评论。]`;
     const hiddenMessage = {
       role: 'system',
@@ -1340,19 +1341,15 @@ ${worldBookContent}
     document.getElementById('call-message-actions-modal').classList.add('visible');
   }
 
-
   function hideCallMessageActions() {
     document.getElementById('call-message-actions-modal').classList.remove('visible');
     activeCallMessageTimestamp = null;
   }
 
-
   async function openCallMessageEditor() {
     if (!activeCallMessageTimestamp) return;
 
     const timestampToEdit = activeCallMessageTimestamp;
-    
-    // 判断当前是视频通话还是语音通话
     const isVideoCall = videoCallState.isActive || document.getElementById('video-call-screen').classList.contains('active');
     const currentCallState = isVideoCall ? videoCallState : voiceCallState;
     
@@ -1382,7 +1379,6 @@ ${worldBookContent}
     }
   }
 
-
   async function saveEditedCallMessage(timestamp, newContent, isVideoCall = true) {
     const currentCallState = isVideoCall ? videoCallState : voiceCallState;
     const message = currentCallState.callHistory.find(m => m.timestamp === timestamp);
@@ -1411,7 +1407,6 @@ ${worldBookContent}
     await showCustomAlert('成功', '通话消息已更新！');
   }
 
-
   async function deleteCallMessage() {
     if (!activeCallMessageTimestamp) return;
 
@@ -1422,7 +1417,6 @@ ${worldBookContent}
       const timestampToDelete = activeCallMessageTimestamp;
       hideCallMessageActions();
 
-      // 判断当前是视频通话还是语音通话
       const isVideoCall = videoCallState.isActive || document.getElementById('video-call-screen').classList.contains('active');
       const currentCallState = isVideoCall ? videoCallState : voiceCallState;
 
