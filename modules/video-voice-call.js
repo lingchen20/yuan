@@ -1,7 +1,7 @@
 // ============================================================
 // video-voice-call.js
 // 来源：script.js 第 25404 ~ 26812 行
-// 功能：视频通话 & 语音通话 & 拍一拍 & 通话消息操作 (手动触发 + 双击隐藏 + 智能批量重新生成版)
+// 功能：视频通话 & 语音通话 & 拍一拍 
 // ============================================================
 
 (function () {
@@ -40,14 +40,11 @@
   function bindRegenerateButton(btnId, isVideo) {
     const oldBtn = document.getElementById(btnId);
     if (!oldBtn) return;
-    // 克隆一个新按键，完美剥离原先笨笨的旧事件
     const newBtn = oldBtn.cloneNode(true);
     oldBtn.parentNode.replaceChild(newBtn, oldBtn);
     
-    // 绑上我们最新的“一键连删”魔法
     newBtn.addEventListener('click', (e) => {
-      e.stopPropagation(); // 防止触发底层的双击隐藏等事件
-      // 增加一个按压小动画反馈
+      e.stopPropagation(); 
       newBtn.style.transform = 'scale(0.85)';
       setTimeout(() => newBtn.style.transform = '', 150);
       handleCallRegenerate(isVideo);
@@ -60,10 +57,8 @@
     if (!callState.isActive) return;
 
     let removedCount = 0;
-    // 从后往前扫荡：只要最后发言的是 'assistant'，统统删掉！
     while (callState.callHistory.length > 0 && callState.callHistory[callState.callHistory.length - 1].role === 'assistant') {
       const msg = callState.callHistory.pop();
-      // 在界面上找到那个气泡并干掉它
       const msgBubble = document.querySelector(`.call-message-bubble[data-timestamp="${msg.timestamp}"]`);
       if (msgBubble) {
         msgBubble.remove();
@@ -73,7 +68,6 @@
 
     if (removedCount > 0) {
       console.log(`[魔改] 成功清除了 ${removedCount} 条连续的AI回复，准备重新生成...`);
-      // 重新呼叫AI产生回复
       if (isVideo) {
         triggerAiInCallAction(null, true);
       } else {
@@ -136,7 +130,6 @@
     document.getElementById('video-call-main').innerHTML = `<em>${videoCallState.isGroupCall ? '群聊已建立...' : '正在接通...'}</em>`;
     showScreen('video-call-screen');
 
-    // ★★★ 绑定视频通话的智能重新生成键 ★★★
     bindRegenerateButton('regenerate-call-btn', true);
 
     if (typeof window.applyVideoOptimizationToCall === 'function') {
@@ -320,7 +313,7 @@
         wrapper.onclick = () => {
           wrapper.style.transform = 'scale(0.9)'; 
           setTimeout(() => wrapper.style.transform = 'none', 150); 
-          triggerAiInCallAction(null, true); // 手动触发生成
+          triggerAiInCallAction(null, true); 
         };
       }
 
@@ -446,7 +439,6 @@ ${linkedContents}
         timestamp: userTimestamp
       });
 
-      // 只有特定情况（如初次接通或点击头像）才触发AI，平时打字不触发
       if (!autoReply) {
         trimCallHistory(videoCallState);
         return; 
@@ -694,15 +686,21 @@ ${linkedContents}
       callFeed.scrollTop = callFeed.scrollHeight;
 
     } catch (error) {
+      // ★★★ 修复：给报错信息发身份证（时间戳），并绑上长按功能 ★★★
+      const errTimestamp = Date.now();
       const errorBubble = document.createElement('div');
       errorBubble.className = 'call-message-bubble ai-speech';
       errorBubble.style.color = '#ff8a80';
       errorBubble.textContent = `[ERROR: ${error.message}]`;
+      errorBubble.dataset.timestamp = errTimestamp;
+      addLongPressListener(errorBubble, () => showCallMessageActions(errTimestamp));
       callFeed.appendChild(errorBubble);
       callFeed.scrollTop = callFeed.scrollHeight;
+      
       videoCallState.callHistory.push({
         role: 'assistant',
-        content: `[ERROR: ${error.message}]`
+        content: `[ERROR: ${error.message}]`,
+        timestamp: errTimestamp
       });
     }
     trimCallHistory(videoCallState);
@@ -777,7 +775,6 @@ ${linkedContents}
     document.getElementById('voice-call-main').innerHTML = `<em>${voiceCallState.isGroupCall ? '群聊已建立...' : '正在接通...'}</em>`;
     showScreen('voice-call-screen');
 
-    // ★★★ 绑定语音通话的智能重新生成键 ★★★
     bindRegenerateButton('voice-regenerate-call-btn', false);
 
     document.getElementById('voice-user-speak-btn').style.display = voiceCallState.isUserParticipating ? 'block' : 'none';
@@ -1220,15 +1217,21 @@ ${worldBookContent}
       callFeed.scrollTop = callFeed.scrollHeight;
 
     } catch (error) {
+      // ★★★ 修复：给报错信息发身份证（时间戳），并绑上长按功能 ★★★
+      const errTimestamp = Date.now();
       const errorBubble = document.createElement('div');
       errorBubble.className = 'call-message-bubble ai-speech';
       errorBubble.style.color = '#ff8a80';
       errorBubble.textContent = `[ERROR: ${error.message}]`;
+      errorBubble.dataset.timestamp = errTimestamp;
+      addLongPressListener(errorBubble, () => showCallMessageActions(errTimestamp));
       callFeed.appendChild(errorBubble);
       callFeed.scrollTop = callFeed.scrollHeight;
+      
       voiceCallState.callHistory.push({
         role: 'assistant',
-        content: `[ERROR: ${error.message}]`
+        content: `[ERROR: ${error.message}]`,
+        timestamp: errTimestamp
       });
     }
     trimCallHistory(voiceCallState);
