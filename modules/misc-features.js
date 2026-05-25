@@ -1768,8 +1768,7 @@
 
     await showCustomAlert('成功', '心声和散记已更新！');
   }
-
-  async function showCharacterProfileModal(chatId) {
+async function showCharacterProfileModal(chatId) {
     const chat = state.chats[chatId];
     if (!chat || chat.isGroup) return;
 
@@ -1815,21 +1814,30 @@
       }
     }
 
-    // 填充左上角角色名字与字数
+    // 1. 填充左上角角色名字与字数 (合并心声 + 散记的总字数，格式改为 Xt)
     if (nameEl) nameEl.textContent = chat.name || "未知角色";
     if (countEl) {
       const voiceText = chat.heartfeltVoice || '';
-      countEl.textContent = `字数: ${voiceText.length}字`;
+      const jottingsText = chat.randomJottings || '';
+      const totalLength = voiceText.length + jottingsText.length; // 两者长度相加
+      countEl.textContent = `字数: ${totalLength}t`; // 后缀更改为 t
     }
 
-    // 填充右上角生成时间
+    // 2. 填充右上角生成时间 (读取 thoughtsHistory 的最新一条历史记录的真实生成时间)
     if (timeEl) {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      const date = now.getDate();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
+      let genTimestamp = Date.now(); // 默认保底时间
+      if (chat.thoughtsHistory && chat.thoughtsHistory.length > 0) {
+        // 获取最新一条心声的时间戳
+        const latestThought = chat.thoughtsHistory[chat.thoughtsHistory.length - 1];
+        genTimestamp = latestThought.timestamp;
+      }
+      
+      const dateObj = new Date(genTimestamp);
+      const year = dateObj.getFullYear();
+      const month = dateObj.getMonth() + 1;
+      const date = dateObj.getDate();
+      const hours = String(dateObj.getHours()).padStart(2, '0');
+      const minutes = String(dateObj.getMinutes()).padStart(2, '0');
       timeEl.textContent = `${year}年${month}月${date}日 ${hours}:${minutes}`;
     }
 
@@ -1841,6 +1849,8 @@
 
     modal.classList.add('visible');
   }
+
+  
 
   async function showThoughtsHistory() { // <-- 1. 添加 async
     document.getElementById('profile-main-content').style.display = 'none';
