@@ -1773,10 +1773,6 @@
     const chat = state.chats[chatId];
     if (!chat || chat.isGroup) return;
 
-
-
-
-
     const heartfeltVoiceEl = document.getElementById('profile-heartfelt-voice');
     const randomJottingsEl = document.getElementById('profile-random-jottings');
 
@@ -1787,12 +1783,12 @@
 
     if (!enableThoughts) {
       // 功能关闭时显示提示
-      heartfeltVoiceEl.innerHTML = '<span style="color: #999;">心声功能已关闭</span>';
-      randomJottingsEl.innerHTML = '<span style="color: #999;">心声功能已关闭</span>';
+      if (heartfeltVoiceEl) heartfeltVoiceEl.innerHTML = '<span style="color: #999;">心声功能已关闭</span>';
+      if (randomJottingsEl) randomJottingsEl.innerHTML = '<span style="color: #999;">心声功能已关闭</span>';
     } else {
       // 功能开启时正常显示
-      heartfeltVoiceEl.innerHTML = await applyRenderingRules(chat.heartfeltVoice || '...', chatId);
-      randomJottingsEl.innerHTML = await applyRenderingRules(chat.randomJottings || '...', chatId);
+      if (heartfeltVoiceEl) heartfeltVoiceEl.innerHTML = await applyRenderingRules(chat.heartfeltVoice || '...', chatId);
+      if (randomJottingsEl) randomJottingsEl.innerHTML = await applyRenderingRules(chat.randomJottings || '...', chatId);
     }
 
     const modal = document.getElementById('character-profile-modal');
@@ -1802,9 +1798,12 @@
       applyCustomThoughtsUI();
     }
 
-    // 更新内部的特定元素，因为可能被自定义 UI 覆盖了内容，需要再次渲染内容
+    // 重新获取动态加载后的特定元素
     const updatedHeartfeltVoiceEl = document.getElementById('profile-heartfelt-voice');
     const updatedRandomJottingsEl = document.getElementById('profile-random-jottings');
+    const nameEl = document.getElementById('profile-char-name');
+    const countEl = document.getElementById('profile-word-count');
+    const timeEl = document.getElementById('profile-gen-time');
     
     if (updatedHeartfeltVoiceEl && updatedRandomJottingsEl) {
       if (!enableThoughts) {
@@ -1814,6 +1813,30 @@
         updatedHeartfeltVoiceEl.innerHTML = await applyRenderingRules(chat.heartfeltVoice || '...', chatId);
         updatedRandomJottingsEl.innerHTML = await applyRenderingRules(chat.randomJottings || '...', chatId);
       }
+    }
+
+    // 填充左上角角色名字与字数
+    if (nameEl) nameEl.textContent = chat.name || "未知角色";
+    if (countEl) {
+      const voiceText = chat.heartfeltVoice || '';
+      countEl.textContent = `字数: ${voiceText.length}字`;
+    }
+
+    // 填充右上角生成时间
+    if (timeEl) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const date = now.getDate();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      timeEl.textContent = `${year}年${month}月${date}日 ${hours}:${minutes}`;
+    }
+
+    // 动态在 modal 的 CSS 变量中注入当前角色的吧唧头像
+    if (modal) {
+      const avatarUrl = chat.settings.aiAvatar || defaultAvatar;
+      modal.style.setProperty('--char-avatar-url', `url('${avatarUrl}')`);
     }
 
     modal.classList.add('visible');
@@ -1860,7 +1883,7 @@
     }
   }
 
-  // ========== 补充缺失的 appendLoadMoreThoughtsButton ==========
+  // ========== 补充缺失 of appendLoadMoreThoughtsButton ==========
   function appendLoadMoreThoughtsButton(container) {
     const button = document.createElement('button');
     button.id = 'load-more-thoughts-btn';
@@ -2940,7 +2963,7 @@
         await deleteNpc(npc.id);
       });
 
-      listEl.appendChild(item);
+      listEl.appendChild(npc);
     });
   }
 
@@ -4287,7 +4310,7 @@ ${email.content}
 
   window.openQuickReplyModal = openQuickReplyModal;
   window.renderQuickReplyList = renderQuickReplyList;
-  window.toggleQuickReplyManagementMode = toggleQuickReplyManagementMode;
+  window.toggleQuickReplyManagementMode = toggleEmailEditMode;
   window.handleSelectAllQuickReplies = handleSelectAllQuickReplies;
   window.executeBatchMoveQuickReplies = executeBatchMoveQuickReplies;
   window.executeBatchDeleteQuickReplies = executeBatchDeleteQuickReplies;
