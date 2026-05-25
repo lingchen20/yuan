@@ -1820,7 +1820,7 @@ async function showCharacterProfileModal(chatId) {
       const voiceText = chat.heartfeltVoice || '';
       const jottingsText = chat.randomJottings || '';
       const totalLength = voiceText.length + jottingsText.length; // 两者长度相加
-      countEl.textContent = `字数: ${totalLength}t`; // 后缀更改为 t
+      countEl.textContent = `${totalLength}t`; // 后缀更改为 t
     }
 
     // 2. 填充右上角生成时间 (读取 thoughtsHistory 的最新一条历史记录的真实生成时间)
