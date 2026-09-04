@@ -3,8 +3,8 @@
   "short_name": "WeChat",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#e5f1fd",
+  "theme_color": "#e5f1fd",
   "description": "聊天应用",
   "icons": [
     {
